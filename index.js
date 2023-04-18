@@ -1,8 +1,11 @@
 //To be done:
-// Each Recipient Completed Time
+//Initial script, private API data: completed add sent date
+//Auto Set Recovery Script.
 //Document Versions...?
-//Handle multiple rows, start of recovery script
+//Handle multiple rows, start of initial script
 //Build test scripts 
+//Document what this script achieves
+//Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting 
 
 // Constants
 let page = 1;
@@ -17,6 +20,7 @@ const onOpen = () => {
     let ui = SpreadsheetApp.getUi();
     ui.createMenu('PandaDoc')
         .addItem('Refresh Documents', 'selectWorkspace')
+        .addItem('Setup Document Log', 'setup')
         .addToUi();
 }
 //App: Custom diolgue with workspace options
@@ -89,7 +93,7 @@ const getWorkspaceName = (e) => {
         const generatedSignature = getGeneratedSignature(input, properties[key]);
 
         if (signature === generatedSignature) {
-            const workspaceProperty = getWorkspaceProperty(3, "name", key);
+            const workspaceProperty = getWorkspaceProperty(9, "name", key);
             return workspaceProperty;
         }
     }
@@ -129,16 +133,13 @@ const documentStatus = (data, row, workspaceName, event) => {
     const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
     const columns = columnHeaders(headers)
     const values = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues();
-    const status = values[columns.status - 1];
-
-    switch (status) {
+    basicInfo(row, data, columns, workspaceName);
+    switch (data.status) {
         case "document.draft":
-            basicInfo(row, data, columns, workspaceName);
-            statusSheet.getRange(row, status).setValue("Draft");
+            statusSheet.getRange(row, columns.status).setValue("Draft");
             break;
 
         case "document.sent":
-            basicInfo(row, data, columns, workspaceName);
             const createToSent = timeTo(data.date_created, data.date_modified);
             statusSheet.getRange(row, columns.status).setValue("Sent");
             statusSheet.getRange(row, columns.dateSent).setValue(data.date_modified);
@@ -147,7 +148,6 @@ const documentStatus = (data, row, workspaceName, event) => {
 
         case "document.viewed":
             if (event === "document_state_changed") {
-                basicInfo(row, data, columns, workspaceName);
                 const sentToViewed = timeTo(values[0][4], data.date_modified);
                 statusSheet.getRange(row, columns.status).setValue("Viewed");
                 statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
@@ -155,30 +155,25 @@ const documentStatus = (data, row, workspaceName, event) => {
             } else if (event === 'recipient_completed') {
                 const col = statusSheet.getLastColumn() + 1;
                 const recipCompletedTime = timeTo(data.date_created, data.date_modified);
-                statusSheet.getRange(row, col, 1, 2).setValues([
-                    [data.action_by.email, data.action_date]
+                statusSheet.getRange(row, col, 1, 3).setValues([
+                    [data.action_by.email, data.action_date, recipCompletedTime]
                 ]);
-                statusSheet.getRange(1, col, 1, 2).setValues([
-                    ["Recipient Email", "Recipient Complete Date"]
+                statusSheet.getRange(1, col, 1, 3).setValues([
+                    ["Recipient Email", "Recipient Complete Date", "Recipient Time to Complete (HH:MM:SS)"]
                 ]);
-                //statusSheet.getRange(row, timeSentToViewed).setValue(sentToViewed);
             }
             break;
 
         case "document.waiting_approval":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Waiting For Approval");
             statusSheet.getRange(row, dateSentForApproval).setValue(data.date_modified);
             break;
 
         case "document.rejected":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Rejected");
             break;
 
         case "document.approved":
-            basicInfo(row, data, columns, workspaceName);
-
             if (values[0][7]) {
                 const timeToApprove = timeTo(values[0][7], data.date_modified);
                 statusSheet.getRange(row, columns.timeToApproveDoc).setValue(timeToApprove);
@@ -189,18 +184,14 @@ const documentStatus = (data, row, workspaceName, event) => {
             break;
 
         case "document.waiting_pay":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Waiting For Payment");
             break;
 
         case "document.paid":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Paid");
             break;
 
         case "document.completed":
-            basicInfo(row, data, columns, workspaceName);
-
             if (values[0][4]) {
                 const sentToComplete = timeTo(values[0][4], data.date_modified);
                 statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
@@ -217,11 +208,9 @@ const documentStatus = (data, row, workspaceName, event) => {
             break;
 
         case "document.voided":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Voided");
             break;
         case "document.declined":
-            basicInfo(row, data, columns, workspaceName);
             statusSheet.getRange(row, columns.status).setValue("Declined");
             break;
     }
@@ -269,7 +258,7 @@ const timeTo = (timeFirst, timeSecond) => {
 }
 
 //Library of Column Headers in the Document Status Sheet
-const columnHeaders = () => {
+const columnHeaders = (headers) => {
     return {
         status: headers[0].indexOf("Status") + 1,
         dateSent: headers[0].indexOf("Date Sent") + 1,
@@ -293,14 +282,18 @@ const columnHeaders = () => {
 
 //Recovery Process: Index Function
 const wsName = async (name) => {
-    const key = workspaceProperties(name);
-    while (true) {
-        const {
-            length,
-            docs
-        } = await listDocuments(key);
-        if (length == 0) break;
-        await eachDoc(docs, name, key);
+    try {
+        const key = workspaceProperties(name);
+        while (true) {
+            const {
+                length,
+                docs
+            } = await listDocuments(`API-Key ${key}`);
+            if (length == 0) break;
+            await eachDocRecovery(docs, name, `API-Key ${key}`);
+        }
+    } catch (error) {
+        logError(error);
     }
 }
 
@@ -320,7 +313,7 @@ const listDocuments = async (key) => {
     const createOptions = {
         'method': 'get',
         'headers': {
-            'Authorization': `API-Key ${key}`,
+            'Authorization': key,
             'Content-Type': 'application/json;charset=UTF-8'
         }
     };
@@ -334,7 +327,7 @@ const listDocuments = async (key) => {
 }
 
 //Recovery Process: For each document check if it exists in the spreadsheet, if so call check status function, if not append to the bottom of the sheet
-const eachDoc = async (docs, wsname, key) => {
+const eachDocRecovery = async (docs, wsname, key) => {
     for (const doc of docs) {
         if (doc.name.startsWith("[DEV]")) continue;
         const rowIndex = searchId(doc.id)
@@ -366,3 +359,33 @@ const checkRowStatus = async (doc, row, key, wsname) => {
     }
     return
 }
+
+const setup = async () => {
+    try {
+        for (const key of propertiesKeys) {
+            if (!key.startsWith("token")) continue;
+            const workspaceName = getWorkspaceProperty(5, "name", key);
+            while (true) {
+                const {
+                    length,
+                    docs
+                } = await listDocuments(`Bearer ${properties[key]}`);
+                if (length == 0) break;
+                await eachDocSetup(docs, workspaceName, `Bearer ${properties[key]}`);
+            }
+
+        }
+    } catch (error) {
+        logError(error);
+    }
+
+    //eachDoc but no check 
+}
+
+const eachDocSetup = async (docs, wsname, key) => {
+    for (const doc of docs) {
+        if (doc.name.startsWith("[DEV]")) continue;
+        documentStatus(doc, statusSheet.getLastRow() + 1, wsname, "document_state_changed");
+    }
+
+};
