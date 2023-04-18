@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+</head>
+
+<body>
+    <div id="form">
+        <select name="Workspaces">
+            <option value="Patrick Test">Patrick Test</option>
+            <option value="Workspace 2">Workspace 2</option>
+        </select>
+
+        <hr />
+
+        <button onclick="select()">Select</button>
+    </div>
+    <div>
+        <h4>
+            After pressing Select the script will take a few seconds to start
+        </h4>
+    </div>
+    <div id="thanks" style="display: none;">
+        <p>Thank you, you can now close this pop up.</p>
+    </div>
+    <script>
+        function select() {
+            let ws = document.getElementsByName("Workspaces")[0].value;
+            google.script.run.wsName(ws);
+            document.getElementById("form").style.display = "none";
+            document.getElementById("thanks").style.display = "block";
+        };
+    </script>
+</body>
+
+</html>
