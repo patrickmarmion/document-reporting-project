@@ -1,8 +1,6 @@
 //To be done:
-//Initial script, private API data: completed add sent date
 //Auto Set Recovery Script.
 //Document Versions...?
-//Handle multiple rows, start of initial script
 //Build test scripts 
 //Document what this script achieves
 //Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting 
@@ -19,8 +17,9 @@ const propertiesKeys = Object.keys(properties);
 const onOpen = () => {
     let ui = SpreadsheetApp.getUi();
     ui.createMenu('PandaDoc')
+        .addItem('Initial Spreadsheet Setup', 'setup')
+        .addSeparator()
         .addItem('Refresh Documents', 'selectWorkspace')
-        .addItem('Setup Document Log', 'setup')
         .addToUi();
 }
 //App: Custom diolgue with workspace options
@@ -51,6 +50,7 @@ const doPost = (e) => {
             return
         }
 
+        addLastRow();
         // Write to the Log Sheet
         logs(data)
 
@@ -134,84 +134,128 @@ const documentStatus = (data, row, workspaceName, event) => {
     const columns = columnHeaders(headers)
     const values = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues();
     basicInfo(row, data, columns, workspaceName);
-    switch (data.status) {
-        case "document.draft":
+    let createToSent;
+    let sentToViewed;
+    switch (true) {
+        case data.status === "document.draft" || data.status === 0:
             statusSheet.getRange(row, columns.status).setValue("Draft");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.draft");
             break;
 
-        case "document.sent":
-            const createToSent = timeTo(data.date_created, data.date_modified);
+        case data.status === "document.sent" || data.status === 1:
             statusSheet.getRange(row, columns.status).setValue("Sent");
-            statusSheet.getRange(row, columns.dateSent).setValue(data.date_modified);
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.sent");
+            if (data.status === 1) {
+                createToSent = timeTo(data.date_created, data.date_sent);
+                statusSheet.getRange(row, columns.dateSent).setValue(data.date_sent);
+            } else {
+                createToSent = timeTo(data.date_created, data.date_modified);
+                statusSheet.getRange(row, columns.dateSent).setValue(data.date_modified);
+            }
             statusSheet.getRange(row, columns.timeCreatedToSent).setValue(createToSent);
             break;
 
-        case "document.viewed":
-            if (event === "document_state_changed") {
-                const sentToViewed = timeTo(values[0][4], data.date_modified);
-                statusSheet.getRange(row, columns.status).setValue("Viewed");
-                statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
+        case event === "recipient_completed" && data.status === "document.viewed":
+            const col = statusSheet.getLastColumn() + 1;
+            const recipCompletedTime = timeTo(data.date_created, data.date_modified);
+            statusSheet.getRange(row, col, 1, 3).setValues([
+                [data.action_by.email, data.action_date, recipCompletedTime]
+            ]);
+            statusSheet.getRange(1, col, 1, 3).setValues([
+                ["Recipient Email", "Recipient Complete Date", "Recipient Time to Complete (HH:MM:SS)"]
+            ]);
+            break;
+
+        case data.status === "document.viewed" || data.status === 5:
+            statusSheet.getRange(row, columns.status).setValue("Viewed");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.viewed");
+            if (data.status === 5) {
+                sentToViewed = timeTo(data.date_sent, data.date_status_changed);
+                statusSheet.getRange(row, columns.dateViewed).setValue(data.date_status_changed);
                 statusSheet.getRange(row, columns.timeSentToViewed).setValue(sentToViewed);
-            } else if (event === 'recipient_completed') {
-                const col = statusSheet.getLastColumn() + 1;
-                const recipCompletedTime = timeTo(data.date_created, data.date_modified);
-                statusSheet.getRange(row, col, 1, 3).setValues([
-                    [data.action_by.email, data.action_date, recipCompletedTime]
-                ]);
-                statusSheet.getRange(1, col, 1, 3).setValues([
-                    ["Recipient Email", "Recipient Complete Date", "Recipient Time to Complete (HH:MM:SS)"]
-                ]);
+            } else if (values[0][4]) {
+                sentToViewed = timeTo(values[0][4], data.date_modified);
+                statusSheet.getRange(row, columns.timeSentToViewed).setValue(sentToViewed);
+                statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
+            } else {
+                statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
             }
             break;
 
-        case "document.waiting_approval":
+        case data.status === "document.waiting_approval" || data.status === 6:
             statusSheet.getRange(row, columns.status).setValue("Waiting For Approval");
-            statusSheet.getRange(row, dateSentForApproval).setValue(data.date_modified);
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.waiting_approval");
+            if (data.status !== 6) statusSheet.getRange(row, dateSentForApproval).setValue(data.date_modified);
             break;
 
-        case "document.rejected":
+        case data.status === "document.rejected" || data.status === 8:
             statusSheet.getRange(row, columns.status).setValue("Rejected");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.rejected");
             break;
 
-        case "document.approved":
-            if (values[0][7]) {
+        case data.status === "document.approved" || data.status === 7:
+            statusSheet.getRange(row, columns.status).setValue("Approved");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.approved");
+            if (data.status === "document.approved" && event !== "Recovery") {
                 const timeToApprove = timeTo(values[0][7], data.date_modified);
                 statusSheet.getRange(row, columns.timeToApproveDoc).setValue(timeToApprove);
+                statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
+            } else if (data.status === "document.approved" && event === "Recovery") {
+                statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
+            } else {
+                statusSheet.getRange(row, columns.dateApproved).setValue(data.date_status_changed);
             }
-
-            statusSheet.getRange(row, columns.status).setValue("Approved");
-            statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
             break;
 
-        case "document.waiting_pay":
+        case data.status === "document.waiting_pay" || data.status === 9:
             statusSheet.getRange(row, columns.status).setValue("Waiting For Payment");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.waiting_pay");
             break;
-
-        case "document.paid":
+        case data.status === "document.paid" || data.status === 10:
             statusSheet.getRange(row, columns.status).setValue("Paid");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.paid");
             break;
 
-        case "document.completed":
-            if (values[0][4]) {
-                const sentToComplete = timeTo(values[0][4], data.date_modified);
-                statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
-            }
-            if (values[0][5]) {
-                const viewToComplete = timeTo(values[0][5], data.date_modified);
-                statusSheet.getRange(row, columns.timeViewedToCompleted).setValue(viewToComplete);
-            }
-
-            const createToComplete = timeTo(data.date_created, data.date_modified);
+        case data.status === "document.completed" || data.status === 2:
             statusSheet.getRange(row, columns.status).setValue("Completed");
-            statusSheet.getRange(row, columns.dateCompleted).setValue(data.date_modified);
-            statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.completed");
+
+            if (event === "Setup") {
+                statusSheet.getRange(row, columns.dateSent).setValue(data.date_sent);
+                statusSheet.getRange(row, columns.dateCompleted).setValue(data.date_completed);
+                let createToSent = timeTo(data.date_created, data.date_sent);
+                let sentToComplete = timeTo(data.date_sent, data.date_completed);
+                let createToComplete = timeTo(data.date_created, data.date_completed);
+                statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
+                statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
+                statusSheet.getRange(row, columns.timeCreatedToSent).setValue(createToSent);
+            } else {
+                if (values[0][4]) {
+                    let sentToComplete = timeTo(values[0][4], data.date_modified);
+                    statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
+                }
+                if (values[0][5]) {
+                    let viewToComplete = timeTo(values[0][5], data.date_modified);
+                    statusSheet.getRange(row, columns.timeViewedToCompleted).setValue(viewToComplete);
+                }
+
+                let createToComplete = timeTo(data.date_created, data.date_modified);
+                statusSheet.getRange(row, columns.dateCompleted).setValue(data.date_modified);
+                statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
+            }
             break;
 
-        case "document.voided":
+        case data.status === "document.voided" || data.status === 11:
             statusSheet.getRange(row, columns.status).setValue("Voided");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.voided");
             break;
-        case "document.declined":
+        case data.status === "document.declined" || data.status === 12:
             statusSheet.getRange(row, columns.status).setValue("Declined");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.declined");
+            break;
+        case data.status === "external_review" || data.status === 13:
+            statusSheet.getRange(row, columns.status).setValue("External Review");
+            statusSheet.getRange(row, columns.statusUnformat).setValue("document.external_review");
             break;
     }
 }
@@ -220,7 +264,6 @@ const basicInfo = (row, data, columns, workspaceName) => {
     statusSheet.getRange(row, columns.workspace).setValue(workspaceName);
     statusSheet.getRange(row, columns.name).setValue(data.name);
     statusSheet.getRange(row, columns.dateCreated).setValue(data.date_created);
-    statusSheet.getRange(row, columns.statusUnformat).setValue(data.status);
 }
 
 //Search first column by document ID
@@ -290,7 +333,7 @@ const wsName = async (name) => {
                 docs
             } = await listDocuments(`API-Key ${key}`);
             if (length == 0) break;
-            await eachDocRecovery(docs, name, `API-Key ${key}`);
+            await eachDoc(docs, name, `API-Key ${key}`);
         }
     } catch (error) {
         logError(error);
@@ -327,14 +370,22 @@ const listDocuments = async (key) => {
 }
 
 //Recovery Process: For each document check if it exists in the spreadsheet, if so call check status function, if not append to the bottom of the sheet
-const eachDocRecovery = async (docs, wsname, key) => {
+const eachDoc = async (docs, wsname, key) => {
     for (const doc of docs) {
+        addLastRow();
+        if (doc.version !== "2") continue;
         if (doc.name.startsWith("[DEV]")) continue;
+        if (key.startsWith("Bearer")) {
+            const document = await getDocDetails(doc.id, key);
+            documentStatus(document, statusSheet.getLastRow() + 1, wsname, "Setup");
+            continue;
+        }
+
         const rowIndex = searchId(doc.id)
-        if (rowIndex < statusSheet.getLastRow() + 1) {
-            await checkRowStatus(doc, rowIndex, key, wsname)
+        if (rowIndex > statusSheet.getLastRow() + 1) {
+            documentStatus(doc, rowIndex, wsname, "Recovery");
         } else {
-            documentStatus(doc, rowIndex, wsname, "document_state_changed");
+            await checkRowStatus(doc, rowIndex, key, wsname)
         }
     }
 };
@@ -361,6 +412,11 @@ const checkRowStatus = async (doc, row, key, wsname) => {
 }
 
 const setup = async () => {
+    const lastRow = statusSheet.getLastRow();
+    if (lastRow > 1) {
+        setupAlert();
+        return
+    }
     try {
         for (const key of propertiesKeys) {
             if (!key.startsWith("token")) continue;
@@ -370,22 +426,38 @@ const setup = async () => {
                     length,
                     docs
                 } = await listDocuments(`Bearer ${properties[key]}`);
-                if (length == 0) break;
-                await eachDocSetup(docs, workspaceName, `Bearer ${properties[key]}`);
+                if (length === 0) break;
+                await eachDoc(docs, workspaceName, `Bearer ${properties[key]}`);
             }
-
         }
     } catch (error) {
         logError(error);
     }
-
-    //eachDoc but no check 
 }
 
-const eachDocSetup = async (docs, wsname, key) => {
-    for (const doc of docs) {
-        if (doc.name.startsWith("[DEV]")) continue;
-        documentStatus(doc, statusSheet.getLastRow() + 1, wsname, "document_state_changed");
-    }
-
+//Get document details calling Private API for full details
+const getDocDetails = async (id, key) => {
+    const createOptions = {
+        'method': 'get',
+        'headers': {
+            'Authorization': key,
+            'Content-Type': 'application/json;charset=UTF-8'
+        }
+    };
+    const response = UrlFetchApp.fetch(`https://api.pandadoc.com/documents/${id}`, createOptions);
+    const responseJson = JSON.parse(response);
+    return responseJson
 };
+
+const setupAlert = () => {
+    let ui = SpreadsheetApp.getUi();
+    ui.alert('WARNING: Setup can only occur with no data in the Document_status Sheet.');
+}
+
+const addLastRow = () => {
+    let lastBlankRowStatusSheet = statusSheet.getLastRow() + 99;
+    statusSheet.insertRowAfter(lastBlankRowStatusSheet); 
+
+    let lastBlankRowLogSheet = logSheet.getLastRow() + 99;
+    logSheet.insertRowAfter(lastBlankRowLogSheet); 
+}
