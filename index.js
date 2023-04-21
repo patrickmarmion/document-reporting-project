@@ -1,10 +1,10 @@
 //To be done:
-//Initial Script: catch for timeout, mark script properties with latest doc created date
+//+ 1 second to last list doc date after the script finishes running
 //Forms?
-//Auto Set Recovery Script: https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
+//Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
 //Document Versions...?
 //Build test scripts 
-//Split Workspaces into different Sheets
+//Split Workspaces into different Sheets & Group
 //Document what this script achieves
 //Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting 
 
@@ -35,11 +35,14 @@ const selectWorkspace = () => {
         .showModalDialog(html, 'Please Select Your Workspace');
 }
 
-//Catch Hook
+//Catch webhook
 const doPost = (e) => {
     try {
         const workspaceName = getWorkspaceName(e);
-        if (!workspaceName) throw new Error("Webhook signature does not match. Key changed or payload has been modified!");
+        if (!workspaceName) {
+            logError("Webhook signature does not match. Key changed or payload has been modified!");
+            throw new Error("Webhook signature does not match. Key changed or payload has been modified!");
+        }
 
         const postData = JSON.parse(e.postData.contents)[0];
         const {
@@ -68,7 +71,7 @@ const doPost = (e) => {
     return HtmlService.createHtmlOutput("doPost received");
 }
 
-// Error Handling
+// Log any errors to Error Sheet
 const logError = (error) => {
     errorsSheet.appendRow([error]);
 };
@@ -129,159 +132,197 @@ const documentDeleted = (id) => {
     const rowIndex = searchId(id);
     if (rowIndex === statusSheet.getLastRow() + 1) return
     statusSheet.deleteRow(rowIndex);
-}
+};
 
-//Based on doc status write details to row
+//Library of Column Headers in the Document Status Sheet
+const columnHeaders = (headers) => {
+    return {
+        status: headers[0].indexOf("Status") + 1,
+        dateSent: headers[0].indexOf("Date Sent") + 1,
+        dateViewed: headers[0].indexOf("Date Viewed") + 1,
+        dateCompleted: headers[0].indexOf("Date Completed") + 1,
+        dateSentForApproval: headers[0].indexOf("Date Sent For Approval") + 1,
+        dateApproved: headers[0].indexOf("Date Approved") + 1,
+        timeCreatedToCompleted: headers[0].indexOf("Time Created to Completed (HH:MM:SS)") + 1,
+        timeSentToCompleted: headers[0].indexOf("Time Sent to Completed (HH:MM:SS)") + 1,
+        timeViewedToCompleted: headers[0].indexOf("Time Viewed to Completed (HH:MM:SS)") + 1,
+        timeCreatedToSent: headers[0].indexOf("Time Created to Sent (HH:MM:SS)") + 1,
+        timeToApproveDoc: headers[0].indexOf("Total Time to Approve (HH:MM:SS)") + 1,
+        timeSentToViewed: headers[0].indexOf("Time Sent to First View (HH:MM:SS)") + 1,
+        id: headers[0].indexOf("ID") + 1,
+        workspace: headers[0].indexOf("Workspace Name") + 1,
+        name: headers[0].indexOf("Document Name") + 1,
+        dateCreated: headers[0].indexOf("Date Created") + 1,
+        statusUnformat: headers[0].indexOf("Status Unformatted") + 1,
+    }
+};
+
+//Sets the two status columns with both the formatted and unformatted status
+const setStatusValue = (row, column, status, unformattedStatus) => {
+    statusSheet.getRange(row, column.status).setValue(status);
+    statusSheet.getRange(row, column.statusUnformat).setValue(unformattedStatus);
+};
+
+//The following functions handle all the different statuses, and updates the sheet accordingly 
+const handleDocumentDraft = (data, row, columns) => {
+    setStatusValue(row, columns, "Draft", "document.draft");
+};
+const handleDocumentSent = (data, row, columns) => {
+    setStatusValue(row, columns, "Sent", "document.sent");
+    const createToSent = timeTo(data.date_created, data.status === 1 ? data.date_sent : data.date_modified);
+    statusSheet.getRange(row, columns.dateSent).setValue(data.status === 1 ? data.date_sent : data.date_modified);
+    statusSheet.getRange(row, columns.timeCreatedToSent).setValue(createToSent);
+};
+const handleDocumentCompleted = (data, row, columns, values, event) => {
+    setStatusValue(row, columns, "Completed", "document.completed");
+
+    if (event === "Setup") {
+        const createToSent = timeTo(data.date_created, data.date_sent);
+        const sentToComplete = timeTo(data.date_sent, data.date_completed);
+        const createToComplete = timeTo(data.date_created, data.date_completed);
+        const rangeValues = [
+            [data.date_sent, data.date_completed, createToSent, sentToComplete, createToComplete]
+        ];
+        const range = statusSheet.getRange(row, columns.dateSent, 1, rangeValues[0].length);
+        range.setValues(rangeValues);
+    } else {
+        if (values[0][4]) {
+            const sentToComplete = timeTo(values[0][4], data.date_modified);
+            statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
+        }
+        if (values[0][5]) {
+            const viewToComplete = timeTo(values[0][5], data.date_modified);
+            statusSheet.getRange(row, columns.timeViewedToCompleted).setValue(viewToComplete);
+        }
+        const createToComplete = timeTo(data.date_created, data.date_modified);
+        const rangeValues = [
+            [data.date_modified, createToComplete]
+        ];
+        const range = statusSheet.getRange(row, columns.dateCompleted, 1, rangeValues[0].length);
+        range.setValues(rangeValues);
+        statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
+    }
+};
+const handleDocumentViewed = (data, row, columns, values, event) => {
+    const col = statusSheet.getLastColumn() + 1;
+
+    if (event === "recipient_completed" && data.status === "document.viewed") {
+        const recipCompletedTime = timeTo(data.date_created, data.date_modified);
+        statusSheet.getRange(row, col, 1, 3).setValues([
+            [data.action_by.email, data.action_date, recipCompletedTime]
+        ]);
+        statusSheet.getRange(1, col, 1, 3).setValues([
+            ["Recipient Email", "Recipient Complete Date", "Recipient Time to Complete (HH:MM:SS)"]
+        ]);
+        return;
+    }
+
+    setStatusValue(row, columns, "Viewed", "document.viewed");
+
+    let sentToViewed = null;
+    let dateViewed = null;
+
+    if (data.status === 5) {
+        sentToViewed = timeTo(data.date_sent, data.date_status_changed);
+        dateViewed = data.date_status_changed;
+    } else {
+        dateViewed = data.date_modified;
+
+        if (values[0][4]) {
+            sentToViewed = timeTo(values[0][4], data.date_modified);
+        }
+    }
+
+    if (sentToViewed !== null) statusSheet.getRange(row, columns.timeSentToViewed).setValue(sentToViewed);
+    if (dateViewed !== null) statusSheet.getRange(row, columns.dateViewed).setValue(dateViewed);
+};
+const handleDocumentWaitingApproval = (data, row, columns) => {
+    setStatusValue(row, columns, "Waiting For Approval", "document.waiting_approval");
+    if (data.status !== 6) statusSheet.getRange(row, dateSentForApproval).setValue(data.date_modified);
+};
+const handleDocumentRejected = (data, row, columns) => {
+    setStatusValue(row, columns, "Rejected", "document.rejected");
+};
+const handleDocumentApproved = (data, row, columns, values, event) => {
+    setStatusValue(row, columns, "Approved", "document.approved");
+    if (data.status === "document.approved" && event !== "Recovery") {
+        const timeToApprove = timeTo(values[0][7], data.date_modified);
+        statusSheet.getRange(row, columns.timeToApproveDoc).setValue(timeToApprove);
+        statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
+    } else if (data.status === "document.approved" && event === "Recovery") {
+        statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
+    } else {
+        statusSheet.getRange(row, columns.dateApproved).setValue(data.date_status_changed);
+    }
+};
+const handleDocumentWaitingPay = (data, row, columns) => {
+    setStatusValue(row, columns, "Waiting For Payment", "document.waiting_pay");
+};
+const handleDocumentPaid = (data, row, columns) => {
+    setStatusValue(row, columns, "Paid", "document.paid");
+};
+const handleDocumentVoid = (data, row, columns) => {
+    setStatusValue(row, columns, "Voided", "document.voided");
+};
+const handleDocumentDeclined = (data, row, columns) => {
+    setStatusValue(row, columns, "Declined", "document.declined");
+};
+const handleDocumentExternalReview = (data, row, columns) => {
+    setStatusValue(row, columns, "External Review", "document.external_review");
+};
+
+//A map of of the different statuses and their corresponding handling function
+const statusHandlers = {
+    "document.draft": handleDocumentDraft,
+    "document.sent": handleDocumentSent,
+    "document.completed": handleDocumentCompleted,
+    "document.viewed": handleDocumentViewed,
+    "document.waiting_approval": handleDocumentWaitingApproval,
+    "document.rejected": handleDocumentRejected,
+    "document.approved": handleDocumentApproved,
+    "document.waiting_pay": handleDocumentWaitingPay,
+    "document.paid": handleDocumentPaid,
+    "document.voided": handleDocumentVoid,
+    "document.declined": handleDocumentDeclined,
+    "document.external_review": handleDocumentExternalReview
+};
+
+//For each status, I patch the first 4 columns with the document's ID, Workspace, Name, Date of Creation. Not called during Recovery when doc already exists.
+const basicInfo = (row, data, workspaceName) => {
+    statusSheet.getRange(row, 1, 1, 4).setValues([
+        [data.id, workspaceName, data.name, data.date_created]
+    ]);
+};
+
+//Based on doc status & the event calls the relevant handler to write doc details to row
 const documentStatus = async (data, row, workspaceName, event, retries = 0) => {
     try {
         const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
-        const columns = columnHeaders(headers)
+        const columns = columnHeaders(headers);
         const values = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues();
-        basicInfo(row, data, columns, workspaceName);
-        let createToSent;
-        let sentToViewed;
-        switch (true) {
-            case data.status === "document.draft" || data.status === 0:
-                statusSheet.getRange(row, columns.status).setValue("Draft");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.draft");
-                break;
+        let status = data.status;
 
-            case data.status === "document.sent" || data.status === 1:
-                statusSheet.getRange(row, columns.status).setValue("Sent");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.sent");
-                if (data.status === 1) {
-                    createToSent = timeTo(data.date_created, data.date_sent);
-                    statusSheet.getRange(row, columns.dateSent).setValue(data.date_sent);
-                } else {
-                    createToSent = timeTo(data.date_created, data.date_modified);
-                    statusSheet.getRange(row, columns.dateSent).setValue(data.date_modified);
-                }
-                statusSheet.getRange(row, columns.timeCreatedToSent).setValue(createToSent);
-                break;
-
-            case event === "recipient_completed" && data.status === "document.viewed":
-                const col = statusSheet.getLastColumn() + 1;
-                const recipCompletedTime = timeTo(data.date_created, data.date_modified);
-                statusSheet.getRange(row, col, 1, 3).setValues([
-                    [data.action_by.email, data.action_date, recipCompletedTime]
-                ]);
-                statusSheet.getRange(1, col, 1, 3).setValues([
-                    ["Recipient Email", "Recipient Complete Date", "Recipient Time to Complete (HH:MM:SS)"]
-                ]);
-                break;
-
-            case data.status === "document.viewed" || data.status === 5:
-                statusSheet.getRange(row, columns.status).setValue("Viewed");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.viewed");
-                if (data.status === 5) {
-                    sentToViewed = timeTo(data.date_sent, data.date_status_changed);
-                    statusSheet.getRange(row, columns.dateViewed).setValue(data.date_status_changed);
-                    statusSheet.getRange(row, columns.timeSentToViewed).setValue(sentToViewed);
-                } else if (values[0][4]) {
-                    sentToViewed = timeTo(values[0][4], data.date_modified);
-                    statusSheet.getRange(row, columns.timeSentToViewed).setValue(sentToViewed);
-                    statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
-                } else {
-                    statusSheet.getRange(row, columns.dateViewed).setValue(data.date_modified);
-                }
-                break;
-
-            case data.status === "document.waiting_approval" || data.status === 6:
-                statusSheet.getRange(row, columns.status).setValue("Waiting For Approval");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.waiting_approval");
-                if (data.status !== 6) statusSheet.getRange(row, dateSentForApproval).setValue(data.date_modified);
-                break;
-
-            case data.status === "document.rejected" || data.status === 8:
-                statusSheet.getRange(row, columns.status).setValue("Rejected");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.rejected");
-                break;
-
-            case data.status === "document.approved" || data.status === 7:
-                statusSheet.getRange(row, columns.status).setValue("Approved");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.approved");
-                if (data.status === "document.approved" && event !== "Recovery") {
-                    const timeToApprove = timeTo(values[0][7], data.date_modified);
-                    statusSheet.getRange(row, columns.timeToApproveDoc).setValue(timeToApprove);
-                    statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
-                } else if (data.status === "document.approved" && event === "Recovery") {
-                    statusSheet.getRange(row, columns.dateApproved).setValue(data.date_modified);
-                } else {
-                    statusSheet.getRange(row, columns.dateApproved).setValue(data.date_status_changed);
-                }
-                break;
-
-            case data.status === "document.waiting_pay" || data.status === 9:
-                statusSheet.getRange(row, columns.status).setValue("Waiting For Payment");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.waiting_pay");
-                break;
-            case data.status === "document.paid" || data.status === 10:
-                statusSheet.getRange(row, columns.status).setValue("Paid");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.paid");
-                break;
-
-            case data.status === "document.completed" || data.status === 2:
-                statusSheet.getRange(row, columns.status).setValue("Completed");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.completed");
-
-                if (event === "Setup") {
-                    statusSheet.getRange(row, columns.dateSent).setValue(data.date_sent);
-                    statusSheet.getRange(row, columns.dateCompleted).setValue(data.date_completed);
-                    let createToSent = timeTo(data.date_created, data.date_sent);
-                    let sentToComplete = timeTo(data.date_sent, data.date_completed);
-                    let createToComplete = timeTo(data.date_created, data.date_completed);
-                    statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
-                    statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
-                    statusSheet.getRange(row, columns.timeCreatedToSent).setValue(createToSent);
-                } else {
-                    if (values[0][4]) {
-                        let sentToComplete = timeTo(values[0][4], data.date_modified);
-                        statusSheet.getRange(row, columns.timeSentToCompleted).setValue(sentToComplete);
-                    }
-                    if (values[0][5]) {
-                        let viewToComplete = timeTo(values[0][5], data.date_modified);
-                        statusSheet.getRange(row, columns.timeViewedToCompleted).setValue(viewToComplete);
-                    }
-
-                    let createToComplete = timeTo(data.date_created, data.date_modified);
-                    statusSheet.getRange(row, columns.dateCompleted).setValue(data.date_modified);
-                    statusSheet.getRange(row, columns.timeCreatedToCompleted).setValue(createToComplete);
-                }
-                break;
-
-            case data.status === "document.voided" || data.status === 11:
-                statusSheet.getRange(row, columns.status).setValue("Voided");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.voided");
-                break;
-            case data.status === "document.declined" || data.status === 12:
-                statusSheet.getRange(row, columns.status).setValue("Declined");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.declined");
-                break;
-            case data.status === "external_review" || data.status === 13:
-                statusSheet.getRange(row, columns.status).setValue("External Review");
-                statusSheet.getRange(row, columns.statusUnformat).setValue("document.external_review");
-                break;
+        if (event !== "Recovery") {
+            basicInfo(row, data, workspaceName);
+            const statusMap = ['document.draft', 'document.sent', 'document.completed', '', '', 'document.viewed', 'document.waiting_approval', 'document.approved', 'document.rejected', 'document.waiting_pay', 'document.paid', 'document.voided', 'document.declined', 'document.external_review']
+            if (typeof status === 'number') status = statusMap[data.status];
         }
+
+        const handler = statusHandlers[status];
+        if (handler) {
+            handler(data, row, columns, values, event);
+        }
+
     } catch (error) {
         if (retries > 2) {
             logError(error);
         }
-        console.log(error.response.data)
+        console.log(error);
         console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        Utilities.sleep(3000);
         return await documentStatus(data, row, workspaceName, event, retries + 1);
     }
-}
-const basicInfo = (row, data, columns, workspaceName) => {
-    try {
-        statusSheet.getRange(row, columns.id).setValue(data.id);
-        statusSheet.getRange(row, columns.workspace).setValue(workspaceName);
-        statusSheet.getRange(row, columns.name).setValue(data.name);
-        statusSheet.getRange(row, columns.dateCreated).setValue(data.date_created);
-    } catch (error) {
-        logError(error);
-    }
-}
+};
 
 //Search first column by document ID
 const searchId = (id) => {
@@ -319,29 +360,6 @@ const timeTo = (timeFirst, timeSecond) => {
     }
     const duration = hms(diffInSeconds);
     return duration
-}
-
-//Library of Column Headers in the Document Status Sheet
-const columnHeaders = (headers) => {
-    return {
-        status: headers[0].indexOf("Status") + 1,
-        dateSent: headers[0].indexOf("Date Sent") + 1,
-        dateViewed: headers[0].indexOf("Date Viewed") + 1,
-        dateCompleted: headers[0].indexOf("Date Completed") + 1,
-        dateSentForApproval: headers[0].indexOf("Date Sent For Approval") + 1,
-        dateApproved: headers[0].indexOf("Date Approved") + 1,
-        timeCreatedToCompleted: headers[0].indexOf("Time Created to Completed (HH:MM:SS)") + 1,
-        timeSentToCompleted: headers[0].indexOf("Time Sent to Completed (HH:MM:SS)") + 1,
-        timeViewedToCompleted: headers[0].indexOf("Time Viewed to Completed (HH:MM:SS)") + 1,
-        timeCreatedToSent: headers[0].indexOf("Time Created to Sent (HH:MM:SS)") + 1,
-        timeToApproveDoc: headers[0].indexOf("Total Time to Approve (HH:MM:SS)") + 1,
-        timeSentToViewed: headers[0].indexOf("Time Sent to First View (HH:MM:SS)") + 1,
-        id: headers[0].indexOf("ID") + 1,
-        workspace: headers[0].indexOf("Workspace Name") + 1,
-        name: headers[0].indexOf("Document Name") + 1,
-        dateCreated: headers[0].indexOf("Date Created") + 1,
-        statusUnformat: headers[0].indexOf("Status Unformatted") + 1,
-    }
 }
 
 //Recovery Process: Index Function
@@ -435,17 +453,18 @@ const checkRowStatus = async (doc, row, key, wsname) => {
     } catch (error) {
         logError(error);
     }
-}
+};
 
+//Index for the setup script
 const setup = async () => {
     try {
+        createTrigger();
         const lastRow = statusSheet.getLastRow();
         const errorValue = errorsSheet.getRange(1, 1).getValues();
-        if (lastRow > 1 && !errorValue[0][0].startsWith("Maximum Script Execution")) {
-            setupAlert();
-            return
+        if (lastRow > 1 && errorValue[0][0].startsWith("Maximum Script Execution")) {
+            setupAlert('WARNING: Setup can only occur with no data in the Document_status Sheet.');
+            return;
         }
-        createTrigger()
         for (const key of propertiesKeys) {
             if (!key.startsWith("token")) continue;
             const workspaceName = getWorkspaceProperty(5, "name", key);
@@ -458,10 +477,15 @@ const setup = async () => {
                 await eachDoc(docs, workspaceName, `Bearer ${properties[key]}`);
             }
         }
+        finaliseSetup();
     } catch (error) {
+        if (error.message.startsWith("Maximum Script Execution Time Approaching")) {
+            logError("Maximum Script Execution Time Approaching, please restart the Initial Script");
+            return;
+        }
         logError(error);
     }
-}
+};
 
 //Get document details calling Private API for full details
 const getDocDetails = async (id, key) => {
@@ -477,33 +501,41 @@ const getDocDetails = async (id, key) => {
     return responseJson
 };
 
-const setupAlert = () => {
+//Alert pop up
+const setupAlert = (alertMessage) => {
     let ui = SpreadsheetApp.getUi();
-    ui.alert('WARNING: Setup can only occur with no data in the Document_status Sheet.');
-}
+    ui.alert(alertMessage);
+};
 
+//With each new document a new row is programmatically added
 const addLastRow = () => {
     try {
         let lastBlankRowStatusSheet = statusSheet.getLastRow() + 99;
         statusSheet.insertRowAfter(lastBlankRowStatusSheet);
-
         let lastBlankRowLogSheet = logSheet.getLastRow() + 99;
         logSheet.insertRowAfter(lastBlankRowLogSheet);
     } catch (error) {
         logError(error);
     }
-}
+};
 
+//GAS only allows 30 mins of execution this 
 const createTrigger = () => {
     ScriptApp.newTrigger("maximumScriptTime")
-    .timeBased()
-    .after(1755000)
-    .create();
-}
+        .timeBased()
+        .after(1750000)
+        .create();
+};
+
 const maximumScriptTime = () => {
     const lastRow = statusSheet.getLastRow();
     const createDate = statusSheet.getRange(lastRow, 4).getValues();
     scriptProperties.setProperty("listDocDate", createDate[0][0]);
+    ScriptApp.deleteTrigger("maximumScriptTime");
     throw new Error("Maximum Script Execution Time Approaching, please restart the Initial Script");
-    //End Script Run
-}
+};
+
+const finaliseSetup = () => {
+    scriptProperties.setProperty("listDocDate", "2022-01-01T01:00:00.000000Z");
+    errorsSheet.deleteColumn(1);
+};
