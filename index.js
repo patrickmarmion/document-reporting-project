@@ -4,7 +4,7 @@
 //Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
 //Document Versions...?
 //Build test scripts 
-//Split Workspaces into different Sheets & Group
+//Split Workspaces into different Sheets & Group?
 //Document what this script achieves
 //Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting 
 
@@ -35,6 +35,18 @@ const selectWorkspace = () => {
         .showModalDialog(html, 'Please Select Your Workspace');
 }
 
+// Log any errors to Error Sheet
+const logError = (error) => {
+    errorsSheet.appendRow([error]);
+};
+
+//Alert pop up
+const setupAlert = (alertMessage) => {
+    let ui = SpreadsheetApp.getUi();
+    ui.alert(alertMessage);
+};
+
+//---WEBHOOK PROCESS FUNCTIONS---
 //Catch webhook
 const doPost = (e) => {
     try {
@@ -69,11 +81,6 @@ const doPost = (e) => {
         logError(error);
     }
     return HtmlService.createHtmlOutput("doPost received");
-}
-
-// Log any errors to Error Sheet
-const logError = (error) => {
-    errorsSheet.appendRow([error]);
 };
 
 //Webhook Verification
@@ -106,20 +113,6 @@ const getWorkspaceName = (e) => {
     throw new Error("Webhook signature does not match. Key changed or payload has been modified!");
 };
 
-//Return Value from Script Properties
-const getWorkspaceProperty = (num, prop, property) => {
-    const workspaceName = property.slice(num);
-    const workspaceNameValue = propertiesKeys
-        .filter((key) => key.includes(workspaceName) && key.includes(prop))
-        .reduce((cur, key) => {
-            return Object.assign(cur, {
-                [key]: properties[key]
-            });
-        }, {});
-    const valueArr = Object.values(workspaceNameValue);
-    return valueArr[0];
-};
-
 //Every trigger write to Log Sheet
 const logs = (data) => {
     const values = [data.id, data.workspaceName, data.name, data.status, data.date_created, data.date_modified, data.expiration_date, data.created_by.email, data.grand_total.currency, data.grand_total.amount];
@@ -132,6 +125,21 @@ const documentDeleted = (id) => {
     const rowIndex = searchId(id);
     if (rowIndex === statusSheet.getLastRow() + 1) return
     statusSheet.deleteRow(rowIndex);
+};
+
+//---SHARED FUNCTIONS---
+//Return Value from Script Properties
+const getWorkspaceProperty = (num, prop, property) => {
+    const workspaceName = property.slice(num);
+    const workspaceNameValue = propertiesKeys
+        .filter((key) => key.includes(workspaceName) && key.includes(prop))
+        .reduce((cur, key) => {
+            return Object.assign(cur, {
+                [key]: properties[key]
+            });
+        }, {});
+    const valueArr = Object.values(workspaceNameValue);
+    return valueArr[0];
 };
 
 //Library of Column Headers in the Document Status Sheet
@@ -338,7 +346,7 @@ const searchId = (id) => {
 }
 //Search: return row index if doc ID exists
 Array.prototype.findIndex = function (search) {
-    for (var i = 0; i < this.length; i++)
+    for (let i = 0; i < this.length; i++)
         if (this[i] == search) return i;
 
     return -1;
@@ -362,7 +370,8 @@ const timeTo = (timeFirst, timeSecond) => {
     return duration
 }
 
-//Recovery Process: Index Function
+//---RECOVERY PROCESS---
+//Index Function
 const wsName = async (name) => {
     try {
         const key = workspaceProperties(name);
@@ -374,6 +383,7 @@ const wsName = async (name) => {
             if (length == 0) break;
             await eachDoc(docs, name, `API-Key ${key}`);
         }
+        finishScriptRun();
     } catch (error) {
         logError(error);
     }
@@ -455,6 +465,7 @@ const checkRowStatus = async (doc, row, key, wsname) => {
     }
 };
 
+//---SETUP PROCESS---
 //Index for the setup script
 const setup = async () => {
     try {
@@ -477,7 +488,7 @@ const setup = async () => {
                 await eachDoc(docs, workspaceName, `Bearer ${properties[key]}`);
             }
         }
-        finaliseSetup();
+        finishScriptRun();
     } catch (error) {
         if (error.message.startsWith("Maximum Script Execution Time Approaching")) {
             logError("Maximum Script Execution Time Approaching, please restart the Initial Script");
@@ -499,12 +510,6 @@ const getDocDetails = async (id, key) => {
     const response = UrlFetchApp.fetch(`https://api.pandadoc.com/documents/${id}`, createOptions);
     const responseJson = JSON.parse(response);
     return responseJson
-};
-
-//Alert pop up
-const setupAlert = (alertMessage) => {
-    let ui = SpreadsheetApp.getUi();
-    ui.alert(alertMessage);
 };
 
 //With each new document a new row is programmatically added
@@ -530,12 +535,31 @@ const createTrigger = () => {
 const maximumScriptTime = () => {
     const lastRow = statusSheet.getLastRow();
     const createDate = statusSheet.getRange(lastRow, 4).getValues();
-    scriptProperties.setProperty("listDocDate", createDate[0][0]);
+    const createDateParse = new Date(createDate[0][0]);
+    const createDatePlusOneSec = new Date(createDateParse.getFullYear(), createDateParse.getMonth(), createDateParse.getDate(), createDateParse.getHours(), createDateParse.getMinutes(), createDateParse.getSeconds() + 1);
+    const createDateUTC = utcString(createDatePlusOneSec)
+    scriptProperties.setProperty("listDocDate", createDateUTC);
     ScriptApp.deleteTrigger("maximumScriptTime");
     throw new Error("Maximum Script Execution Time Approaching, please restart the Initial Script");
 };
 
-const finaliseSetup = () => {
-    scriptProperties.setProperty("listDocDate", "2022-01-01T01:00:00.000000Z");
+const finishScriptRun = () => {
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+    const oneYearAgoUTC = utcString(oneYearAgo);
+    scriptProperties.setProperty("listDocDate", oneYearAgoUTC);
     errorsSheet.deleteColumn(1);
 };
+
+const utcString = (time) => {
+    let year = time.getUTCFullYear();
+    let month = ("0" + (time.getUTCMonth() + 1)).slice(-2);
+    let day = ("0" + time.getUTCDate()).slice(-2);
+    let hours = ("0" + time.getUTCHours()).slice(-2);
+    let minutes = ("0" + time.getUTCMinutes()).slice(-2);
+    let seconds = ("0" + time.getUTCSeconds()).slice(-2);
+    let milliseconds = ("00000" + time.getUTCMilliseconds())
+
+    let dateString = year + "-" + month + "-" + day + "T" + hours + ":" + minutes + ":" + seconds + "." + milliseconds + "Z";
+    return dateString;
+}
