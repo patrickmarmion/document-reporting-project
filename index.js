@@ -1,7 +1,6 @@
 //To be done:
-//Forms?
+//Date completed  & sent for approval & approved are wrong!! Handle functions need attention
 //Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
-//Document Versions...?
 //Build test scripts 
 //Split Workspaces into different Sheets & Group?
 //Document what this script achieves
@@ -77,8 +76,6 @@ const doPost = (e) => {
 
         // Write to Document Status Sheet    
         const rowIndex = searchId(data.id);
-
-        
         documentStatus(data, rowIndex, workspaceName, event);
 
         //Mark if the document is a form
@@ -125,6 +122,18 @@ const logs = (data) => {
     const values = [data.id, data.workspaceName, data.name, data.status, data.date_created, data.date_modified, data.expiration_date, data.created_by.email, data.grand_total.currency, data.grand_total.amount];
     if (data.template) values.push(data.template.id, data.template.name);
     logSheet.appendRow(values);
+}
+
+//Check if the document was created form a PD Form
+const form = (data, row) => {
+    if (data.linked_objects.length > 0) {
+        const firstObject = data.linked_objects[0];
+        if (firstObject.provider === "pandadoc-eform") {
+            const columns = columnHeaders(headers);
+            statusSheet.getRange(row, columns.form).setValue("True");
+        }
+    }
+    return
 }
 
 //Delete row when doc gets deleted
@@ -433,8 +442,10 @@ const eachDoc = async (docs, wsname, key) => {
         if (doc.version !== "2") continue;
         if (doc.name.startsWith("[DEV]")) continue;
         if (key.startsWith("Bearer")) {
-            const document = await getDocDetails(doc.id, key);
-            documentStatus(document, statusSheet.getLastRow() + 1, wsname, "Setup");
+            const documentDetailsPriv = await getDocDetails(key, `https://api.pandadoc.com/documents/${doc.id}`);
+            documentStatus(documentDetailsPriv, statusSheet.getLastRow() + 1, wsname, "Setup");
+            const documentDetailsPub = await getDocDetails(key, `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
+            form(documentDetailsPub, statusSheet.getLastRow());
             continue;
         }
 
@@ -464,6 +475,7 @@ const checkRowStatus = async (doc, row, key, wsname) => {
             const response = UrlFetchApp.fetch(`https://api.pandadoc.com/public/v1/documents/${doc.id}/details`, createOptions);
             const responseJson = JSON.parse(response);
             documentStatus(responseJson, row, wsname, "document_state_changed");
+            form(responseJson, row);
         }
         return
     } catch (error) {
@@ -478,6 +490,7 @@ const setup = async () => {
         createTrigger();
         const lastRow = statusSheet.getLastRow();
         const errorValue = errorsSheet.getRange(1, 1).getValues();
+        console.log(errorValue[0][0])
         if (lastRow > 1 && errorValue[0][0].startsWith("Maximum Script Execution")) {
             setupAlert('WARNING: Setup can only occur with no data in the Document_status Sheet.');
             return;
@@ -496,6 +509,7 @@ const setup = async () => {
         }
         finishScriptRun();
     } catch (error) {
+        console.log(error);
         if (error.message.startsWith("Maximum Script Execution Time Approaching")) {
             logError("Maximum Script Execution Time Approaching, please restart the Initial Script");
             return;
@@ -505,7 +519,7 @@ const setup = async () => {
 };
 
 //Get document details calling Private API for full details
-const getDocDetails = async (id, key) => {
+const getDocDetails = async (key, url) => {
     const createOptions = {
         'method': 'get',
         'headers': {
@@ -513,7 +527,7 @@ const getDocDetails = async (id, key) => {
             'Content-Type': 'application/json;charset=UTF-8'
         }
     };
-    const response = UrlFetchApp.fetch(`https://api.pandadoc.com/documents/${id}`, createOptions);
+    const response = UrlFetchApp.fetch(url, createOptions);
     const responseJson = JSON.parse(response);
     return responseJson
 };
@@ -530,12 +544,15 @@ const addLastRow = () => {
     }
 };
 
-//GAS only allows 30 mins of execution this 
+//GAS only allows 30 mins of execution
 const createTrigger = () => {
-    ScriptApp.newTrigger("maximumScriptTime")
+    const trigger = ScriptApp.newTrigger("maximumScriptTime")
         .timeBased()
-        .after(1750000)
+        .after(17500) //1750000
         .create();
+
+    const triggerId = trigger.getUniqueId();
+    scriptProperties.setProperty("triggerID", triggerId);
 };
 
 const maximumScriptTime = () => {
@@ -545,9 +562,23 @@ const maximumScriptTime = () => {
     const createDatePlusOneSec = new Date(createDateParse.getFullYear(), createDateParse.getMonth(), createDateParse.getDate(), createDateParse.getHours(), createDateParse.getMinutes(), createDateParse.getSeconds() + 1);
     const createDateUTC = utcString(createDatePlusOneSec)
     scriptProperties.setProperty("listDocDate", createDateUTC);
-    ScriptApp.deleteTrigger("maximumScriptTime");
-    throw new Error("Maximum Script Execution Time Approaching, please restart the Initial Script");
+
+    const id = scriptProperties.getProperty("triggerID");
+    const triggers = ScriptApp.getProjectTriggers();
+    const triggerToDelete = triggers.find(trigger => trigger.getUniqueId() === id);
+
+    ScriptApp.deleteTrigger(triggerToDelete);
+    console.log("Trigger deleted successfully.");
+
+    throw new CustomError("Maximum Script Execution Time Approaching, please restart the Initial Script");
 };
+
+class CustomError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "CustomError";
+    }
+}
 
 const finishScriptRun = () => {
     const now = new Date();
