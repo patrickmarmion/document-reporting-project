@@ -77,6 +77,8 @@ const doPost = (e) => {
 
         // Write to Document Status Sheet    
         const rowIndex = searchId(data.id);
+
+        
         documentStatus(data, rowIndex, workspaceName, event);
 
         //Mark if the document is a form
