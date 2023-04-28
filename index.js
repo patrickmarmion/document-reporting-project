@@ -1,18 +1,18 @@
 //To be done:
-//+ 1 second to last list doc date after the script finishes running
 //Forms?
 //Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
 //Document Versions...?
 //Build test scripts 
 //Split Workspaces into different Sheets & Group?
 //Document what this script achieves
-//Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting 
+//Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting, BigQuery export
 
 // Constants
 let page = 1;
 const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
 const statusSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Document_status");
 const errorsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Errors");
+const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
 const scriptProperties = PropertiesService.getScriptProperties();
 const properties = scriptProperties.getProperties();
 const propertiesKeys = Object.keys(properties);
@@ -69,13 +69,18 @@ const doPost = (e) => {
             return
         }
 
+        //Add a row to the document
         addLastRow();
+
         // Write to the Log Sheet
         logs(data)
 
         // Write to Document Status Sheet    
-        const rowIndex = searchId(data.id)
+        const rowIndex = searchId(data.id);
         documentStatus(data, rowIndex, workspaceName, event);
+
+        //Mark if the document is a form
+        form(data, rowIndex);
 
     } catch (error) {
         logError(error);
@@ -162,6 +167,7 @@ const columnHeaders = (headers) => {
         name: headers[0].indexOf("Document Name") + 1,
         dateCreated: headers[0].indexOf("Date Created") + 1,
         statusUnformat: headers[0].indexOf("Status Unformatted") + 1,
+        form: headers[0].indexOf("Form") + 1
     }
 };
 
@@ -305,7 +311,6 @@ const basicInfo = (row, data, workspaceName) => {
 //Based on doc status & the event calls the relevant handler to write doc details to row
 const documentStatus = async (data, row, workspaceName, event, retries = 0) => {
     try {
-        const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
         const columns = columnHeaders(headers);
         const values = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues();
         let status = data.status;
@@ -443,7 +448,6 @@ const eachDoc = async (docs, wsname, key) => {
 //Recovery Process: check if existing doc has the correct status, if not update the row in the spreadsheet
 const checkRowStatus = async (doc, row, key, wsname) => {
     try {
-        const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
         const statusIndex = headers[0].indexOf("Status Unformatted") + 1;
         const statusUnformat = statusSheet.getRange(row, statusIndex).getValues();
 
