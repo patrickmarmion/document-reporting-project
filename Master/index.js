@@ -1,10 +1,12 @@
 //To be done:
 //Date completed  & sent for approval & approved are wrong!! Handle functions need attention
+// never use values as a condition - columns change position.
+//End of Setup script order the sheet by doc created
 //Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
 //Build test scripts 
 //Split Workspaces into different Sheets & Group?
 //Document what this script achieves
-//Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting, BigQuery export
+//Long term: Grand Total reporting, Template Reporting, Product reporting, Renewal Reporting, Expiration Reporting, Recipient reporting (e.g. customer location), BigQuery export
 
 // Constants
 let page = 1;
@@ -490,7 +492,6 @@ const setup = async () => {
         createTrigger();
         const lastRow = statusSheet.getLastRow();
         const errorValue = errorsSheet.getRange(1, 1).getValues();
-        console.log(errorValue[0][0])
         if (lastRow > 1 && errorValue[0][0].startsWith("Maximum Script Execution")) {
             setupAlert('WARNING: Setup can only occur with no data in the Document_status Sheet.');
             return;
@@ -503,7 +504,10 @@ const setup = async () => {
                     length,
                     docs
                 } = await listDocuments(`Bearer ${properties[key]}`);
-                if (length === 0) break;
+                if (length === 0) {
+                    //Delete key
+                    break;
+                }
                 await eachDoc(docs, workspaceName, `Bearer ${properties[key]}`);
             }
         }
