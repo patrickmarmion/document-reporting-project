@@ -21,6 +21,8 @@ const createTimeTriggers = () => {
 const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'true');
     Utilities.sleep(3000);
+    const increment = scriptProperties.getProperty('increment') || 0; 
+    scriptProperties.setProperty('increment', increment + 1);
 
     const values = statusSheet.getRange(statusSheet.getLastRow(), 1, 1, statusSheet.getLastColumn()).getValues();
     const createDate = values[0][3];
@@ -41,11 +43,17 @@ const incrementCreateDate = () => {
 
 const continueFunction = () => {
     Logger.log('1. Continue Function');
-    let createDate = scriptProperties.getProperty('createDate') || "2021-01-01T01:01:01.000000Z";
-    setup.setupIndex(createDate);
+    const increment = scriptProperties.getProperty('increment') || 0; 
+    if (increment >= 1) {
+        let createDate = scriptProperties.getProperty('createDate') || "2021-01-01T01:01:01.000000Z";
+        setup.setupIndex(createDate);
+    }
 };
 
 const deleteSetupTriggers = () => {
+
+    //Frist Delete the increment property, in case you have to run the script again
+    scriptProperties.deleteProperty('increment');
 
     const projectTriggers = ScriptApp.getProjectTriggers();
     const incrementTrigg = scriptProperties.getProperty('incrementTriggerID');

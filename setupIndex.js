@@ -11,7 +11,7 @@ const loopThroughDocuments = (date) => {
                 docs
             } = pdIndex.listDocuments(`Bearer ${properties[key]}`, date, page);
             page++
-            if (length === 0 && statusSheet.getLastRow() > 1) {
+            if (length === 0) {
                 triggers.deleteTriggers();
                 break;
             }
