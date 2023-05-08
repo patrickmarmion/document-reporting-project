@@ -1,12 +1,12 @@
 const createTimeTriggers = () => {
     let incrementTrigger = ScriptApp.newTrigger('incrementCreateDate')
         .timeBased()
-        .everyMinutes(10)
+        .everyMinutes(1)
         .create();
 
     let continueTrigger = ScriptApp.newTrigger('continueFunction')
         .timeBased()
-        .everyMinutes(15)
+        .everyMinutes(5)
         .create();
 
     const incrementTriggerId = incrementTrigger.getUniqueId();
@@ -20,8 +20,8 @@ const createTimeTriggers = () => {
 
 const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'true');
-    Utilities.sleep(3000);
-    const increment = scriptProperties.getProperty('increment') || 0; 
+    Utilities.sleep(5000);
+    const increment = Number(scriptProperties.getProperty('increment')) || 1; 
     scriptProperties.setProperty('increment', increment + 1);
 
     const values = statusSheet.getRange(statusSheet.getLastRow(), 1, 1, statusSheet.getLastColumn()).getValues();
@@ -29,12 +29,7 @@ const incrementCreateDate = () => {
 
     if (createDate === "Date Created") {
         scriptProperties.setProperty('createDate', "2021-01-01T01:01:01.000000Z");
-    } else if (createDate.startsWith("20")) {
-        const originalDate = new Date(createDate);
-        const newDate = new Date(originalDate.getTime() + 30000);
-        const formattedDate = newDate.toISOString().replace("Z", "") + "000Z";
-        scriptProperties.setProperty('createDate', formattedDate);
-    }
+    } 
 
     statusSheet.appendRow(["Increment Index Executed HERE", scriptProperties.getProperty('createDate')]);
     scriptProperties.setProperty('stopFlag', 'false');
@@ -44,14 +39,13 @@ const incrementCreateDate = () => {
 const continueFunction = () => {
     Logger.log('1. Continue Function');
     const increment = scriptProperties.getProperty('increment') || 0; 
-    if (increment >= 1) {
+    if (increment >= 2) {
         let createDate = scriptProperties.getProperty('createDate') || "2021-01-01T01:01:01.000000Z";
         setup.setupIndex(createDate);
     }
 };
 
 const deleteSetupTriggers = () => {
-
     //Frist Delete the increment property, in case you have to run the script again
     scriptProperties.deleteProperty('increment');
 

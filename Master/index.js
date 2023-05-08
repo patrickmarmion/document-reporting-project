@@ -1,7 +1,4 @@
 //To be done:
-//Date completed  & sent for approval & approved are wrong!! Handle functions need attention
-// never use values as a condition - columns change position.
-//End of Setup script order the sheet by doc created
 //Auto Set Recovery Script (this could ultimately be linked to a report export?): https://developers.google.com/apps-script/guides/triggers/installable#time_driven_triggers
 //Build test scripts 
 //Split Workspaces into different Sheets & Group?

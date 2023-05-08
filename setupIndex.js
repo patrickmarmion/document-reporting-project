@@ -1,25 +1,37 @@
-const loopThroughDocuments = (date) => {
+const loopThroughWorkspaces = (date) => {
     Logger.log('2. loop through doc');
-    let page = 1;
-    let foo = true;
     for (const key of propertiesKeys) {
         if (!key.startsWith("token")) continue;
         const workspaceName = property.getValueFromScriptProperties(5, "name", key);
-        while (foo) {
-            const {
-                length,
-                docs
-            } = pdIndex.listDocuments(`Bearer ${properties[key]}`, date, page);
-            page++
-            if (length === 0) {
-                triggers.deleteTriggers();
-                break;
-            }
-            foo = pdIndex.processListDocResult(docs, workspaceName, `Bearer ${properties[key]}`);
+        let page = 1;
+
+        while (fetchAndProcessDocuments(properties[key], date, page, workspaceName)) {
+            page++;
         }
     }
 };
 
+const fetchAndProcessDocuments = (key, date, page, workspaceName) => {
+    const {
+        length,
+        docs
+    } = pdIndex.listDocuments(`Bearer ${key}`, date, page);
+
+    if (length === 0) {
+        triggers.deleteTriggers();
+        return false;
+    }
+
+    const docsFiltered = pdIndex.processListDocResult(docs, workspaceName, `Bearer ${key}`);
+    if (!docsFiltered) {
+        return false;
+    }
+
+    const forms = pdIndex.checkIfForm(docsFiltered, `Bearer ${key}`);
+    return forms;
+};
+
+
 const setup = {
-    setupIndex: loopThroughDocuments
+    setupIndex: loopThroughWorkspaces
 };

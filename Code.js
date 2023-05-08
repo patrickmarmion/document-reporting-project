@@ -18,3 +18,9 @@ const onOpen = () => {
 const indexSetup = () => {
   triggers.createTriggers();
 };
+
+
+// ----IDEAS-----
+//Fix createDate
+//Beautify Provider / Form process
+//Grand Total

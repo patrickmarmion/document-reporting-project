@@ -1,6 +1,5 @@
 //Return Value from Script Properties
 
-
 const getValueFromScriptProperties = (num, prop, property) => {
     const workspaceName = property.slice(num);
     const workspaceNameValue = propertiesKeys
