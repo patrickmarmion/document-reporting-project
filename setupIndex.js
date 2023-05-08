@@ -1,5 +1,5 @@
 const loopThroughWorkspaces = (date) => {
-    Logger.log('2. loop through doc');
+    Logger.log('2. loop through workspaces');
     for (const key of propertiesKeys) {
         if (!key.startsWith("token")) continue;
         const workspaceName = property.getValueFromScriptProperties(5, "name", key);

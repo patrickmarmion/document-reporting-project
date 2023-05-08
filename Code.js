@@ -21,6 +21,7 @@ const indexSetup = () => {
 
 
 // ----IDEAS-----
-//Fix createDate
 //Beautify Provider / Form process
 //Grand Total
+//Bulk add rows
+//End of the script run, check for any rows with the same IDs

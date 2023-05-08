@@ -45,17 +45,18 @@ const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
         return docsFiltered;
     } catch (error) {
         if (retries > 1) {
-            //logError(error); => need to handle errors
-            console.log(error);
+            errorHandler.logAPIError(error);
+            return false;
         }
         console.log(error);
         console.log(`Received error, retrying in 2 seconds... (attempt ${retries + 1} of 2)`);
-        Utilities.sleep(1500);
+        Utilities.sleep(2000);
         return fetchAllListDocResult(docs, workspaceName, key, retries + 1);
     }
 };
 
 const fetchAllListDocResultForms = (docs, key, retries = 0) => {
+    Logger.log("6. Form?");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
         const requests = docsMap.map(url => {
@@ -81,12 +82,12 @@ const fetchAllListDocResultForms = (docs, key, retries = 0) => {
         return true;
     } catch (error) {
         if (retries > 1) {
-            //logError(error); => need to handle errors
-            console.log(error);
+            errorHandler.logAPIError(error);
+            return false;
         }
         console.log(error);
         console.log(`Received error, retrying in 2 seconds... (attempt ${retries + 1} of 2)`);
-        Utilities.sleep(1500);
+        Utilities.sleep(2000);
         return fetchAllListDocResultForms(docs, key, retries + 1);
     }
 };

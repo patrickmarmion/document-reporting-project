@@ -1,6 +1,6 @@
 //Title
 const documentStatus = (data, row, workspaceName, event) => {
-    Logger.log("6. In Doc status");
+    Logger.log("5. In Doc status");
     try {
         const dataArray = data.map(obj => [
             obj.id,
