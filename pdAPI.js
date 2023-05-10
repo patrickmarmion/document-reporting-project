@@ -45,13 +45,21 @@ const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
         handleStatus.documentStatus(jsonResponses, statusSheet.getLastRow() + 1, workspaceName, "Setup");
         return docsFiltered;
     } catch (error) {
-        if (retries > 1) {
+        if (retries > 2) {
+            Logger.log("Maximum number of errors exceeded");
             errorHandler.logAPIError(error);
+
+            //Set script propery createDate
+            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
+            const filteredData = column.filter(arr => arr.some(val => val !== ''));
+            const lastCreateDate = filteredData[filteredData.length - 1][0];
+            scriptProperties.setProperty('createDate', lastCreateDate);
+
             return false;
         }
-        console.log(error);
-        console.log(`Received error, retrying in 2 seconds... (attempt ${retries + 1} of 2)`);
-        Utilities.sleep(2000);
+        console.log("Private API " + error);
+        console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
+        Utilities.sleep(3000);
         return fetchAllListDocResult(docs, workspaceName, key, retries + 1);
     }
 };
@@ -83,13 +91,21 @@ const fetchAllListDocResultForms = (docs, key, retries = 0) => {
         };
         return true;
     } catch (error) {
-        if (retries > 1) {
+        if (retries > 2) {
+            Logger.log("Maximum number of errors exceeded");
             errorHandler.logAPIError(error);
+
+            //Set script propery createDate
+            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
+            const filteredData = column.filter(arr => arr.some(val => val !== ''));
+            const lastCreateDate = filteredData[filteredData.length - 1][0];
+            scriptProperties.setProperty('createDate', lastCreateDate);
+
             return false;
         }
-        console.log(error);
-        console.log(`Received error, retrying in 2 seconds... (attempt ${retries + 1} of 2)`);
-        Utilities.sleep(2000);
+        console.log("Public API " + error);
+        console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
+        Utilities.sleep(3000);
         return fetchAllListDocResultForms(docs, key, retries + 1);
     }
 };

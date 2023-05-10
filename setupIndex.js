@@ -35,7 +35,7 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         length,
         docs
     } = pdIndex.listDocuments(`Bearer ${key}`, date, page);
-    console.log(workspaceName + ": " + length)
+    console.log(workspaceName + ": " + length);
     if (length === 0) {
         //Delete token in script properties.
         scriptProperties.deleteProperty(propertyKey)
@@ -58,6 +58,9 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
 
     //Insert 100 blank rows
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 100);
+
+    //temporary fix for throttling error
+    Utilities.sleep(2000);
 
     const forms = pdIndex.checkIfForm(docsFiltered, `Bearer ${key}`);
     if (!forms) {

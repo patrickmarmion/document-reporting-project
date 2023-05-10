@@ -20,7 +20,7 @@ const createTimeTriggers = () => {
 
 const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'true');
-    Utilities.sleep(5000);
+    Utilities.sleep(10000);
     const increment = Number(scriptProperties.getProperty('increment')) || 1;
     scriptProperties.setProperty('increment', increment + 1);
 

@@ -18,13 +18,19 @@ const onOpen = () => {
 const indexSetup = () => {
   const lastRow = statusSheet.getLastRow();
   if (lastRow > 1) {
-      errorHandler.alert("WARNING: Setup can only occur with no data in the Document_status Sheet.");
-      return;
-  }
-  if (!propertiesKeys.includes("token")){
+    errorHandler.alert("WARNING: Setup can only occur with no data in the Document_status Sheet.");
+    return;
+  };
+  let arr = [];
+  propertiesKeys.forEach(item => {
+    if (item.startsWith("token")) {
+      arr.push(item);
+    }
+  });
+  if (!arr.length) {
     errorHandler.alert("You must have at least one Bearer Token saved as a script property");
     return;
-  }
+  };
   scriptProperties.setProperty("increment", 1);
   scriptProperties.setProperty("createDate", "2021-01-01T01:01:01.000000Z");
   triggers.createTriggers();
@@ -32,8 +38,4 @@ const indexSetup = () => {
 
 
 // ----IDEAS-----
-//Full testing
-//How does the code not keep on repeating workspace results?
 //Sort docs by created date or sort workspaces into their own sheet?
-//Handle throttling error
-//When setting up triggers, could I not sort all of the script properties to be the same each time?
