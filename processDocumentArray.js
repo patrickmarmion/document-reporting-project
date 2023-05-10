@@ -1,6 +1,6 @@
 //Title
 const documentStatus = (data, row, workspaceName, event) => {
-    Logger.log("5. In Doc status");
+    Logger.log("6. In Doc status");
     try {
         const dataArray = data.map(obj => [
             obj.id,
@@ -9,7 +9,11 @@ const documentStatus = (data, row, workspaceName, event) => {
             obj.date_created,
             getStatusText(obj.status),
             getStatusFormattedText(obj.status),
+            obj.created_from_template ? obj.created_from_template.id : "", //Template ID
+            obj.owner ? obj.owner.email : "",
             "", //Provider
+            "", //Currency
+            "", //Grand Total
             obj.date_sent,
             "", //Date Viewed
             obj.date_completed,
@@ -18,7 +22,11 @@ const documentStatus = (data, row, workspaceName, event) => {
             timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
             timeTo(obj.date_sent, obj.date_completed), //Time Sent to Completed
             "", //Time Viewed to Completed
-            timeTo(obj.date_created, obj.date_sent) //Time Created to Sent
+            timeTo(obj.date_created, obj.date_sent), //Time Created to Sent
+            "", //Total time to approve
+            "", //Time sent to first View
+            obj.renewal ? obj.renewal.renewal_date : "",
+            obj.date_expiration
         ]);
 
         statusSheet.getRange(row, 1, dataArray.length, dataArray[0].length).setValues(dataArray);

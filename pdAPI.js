@@ -1,7 +1,7 @@
 //This file calls various PandaDoc API endpoints 
 
 const listDocs = (key, date, page) => {
-    Logger.log("3. list docs");
+    Logger.log("4. list docs");
     const createOptions = {
         'method': 'get',
         'headers': {
@@ -19,10 +19,11 @@ const listDocs = (key, date, page) => {
 };
 
 const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
-    Logger.log("4. Each doc");
+    Logger.log("5. Each doc");
     try {
         if (scriptProperties.getProperty('stopFlag') === 'true') {
             scriptProperties.setProperty('createDate', docs[0].date_created);
+            Logger.log("Paused for time");
             return false;
         };
         const docsFiltered = docs.filter(doc => !doc.name.startsWith("[DEV]") && doc.version === "2")
@@ -56,7 +57,7 @@ const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
 };
 
 const fetchAllListDocResultForms = (docs, key, retries = 0) => {
-    Logger.log("6. Form?");
+    Logger.log("7. Form?");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
         const requests = docsMap.map(url => {
@@ -77,6 +78,7 @@ const fetchAllListDocResultForms = (docs, key, retries = 0) => {
         if (scriptProperties.getProperty('stopFlag') === 'true') {
             const createDate = statusSheet.getRange(statusSheet.getLastRow(), 4).getValues();
             scriptProperties.setProperty('createDate', createDate[0][0]);
+            Logger.log("Paused for time");
             return false;
         };
         return true;

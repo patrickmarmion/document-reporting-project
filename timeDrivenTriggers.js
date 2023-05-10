@@ -21,15 +21,8 @@ const createTimeTriggers = () => {
 const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'true');
     Utilities.sleep(5000);
-    const increment = Number(scriptProperties.getProperty('increment')) || 1; 
+    const increment = Number(scriptProperties.getProperty('increment')) || 1;
     scriptProperties.setProperty('increment', increment + 1);
-
-    const values = statusSheet.getRange(statusSheet.getLastRow(), 1, 1, statusSheet.getLastColumn()).getValues();
-    const createDate = values[0][3];
-
-    if (createDate === "Date Created") {
-        scriptProperties.setProperty('createDate', "2021-01-01T01:01:01.000000Z");
-    } 
 
     statusSheet.appendRow(["Increment Index Executed HERE", scriptProperties.getProperty('createDate')]);
     scriptProperties.setProperty('stopFlag', 'false');
@@ -38,7 +31,7 @@ const incrementCreateDate = () => {
 
 const continueFunction = () => {
     Logger.log('1. Continue Function');
-    const increment = scriptProperties.getProperty('increment') || 0; 
+    const increment = scriptProperties.getProperty('increment') || 0;
     if (increment >= 2) {
         let createDate = scriptProperties.getProperty('createDate') || "2021-01-01T01:01:01.000000Z";
         setup.setupIndex(createDate);
