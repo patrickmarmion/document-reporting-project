@@ -24,7 +24,6 @@ const incrementCreateDate = () => {
     const increment = Number(scriptProperties.getProperty('increment')) || 1;
     scriptProperties.setProperty('increment', increment + 1);
 
-    statusSheet.appendRow(["Increment Index Executed HERE", scriptProperties.getProperty('createDate')]);
     scriptProperties.setProperty('stopFlag', 'false');
 };
 
@@ -57,7 +56,7 @@ const deleteSetupTriggers = () => {
     }
 };
 
-const shouldPause = (event) => {
+const shouldPause = (event, docs) => {
     const stopFlag = scriptProperties.getProperty('stopFlag');
     
     if (stopFlag === 'true') {
@@ -69,8 +68,9 @@ const shouldPause = (event) => {
                 scriptProperties.setProperty('createDate', docs[0].date_created);
                 return true;
             case "SetupPublic":
-                const createDate = statusSheet.getRange(statusSheet.getLastRow(), 4).getValues();
-                scriptProperties.setProperty('createDate', createDate[0][0]);
+                const lastRow = statusSheet.getLastRow();
+                const createDate = statusSheet.getRange(`D1:D${lastRow}`).getValues().reverse().find(([value]) => value !== '' && value !== "Date Created")?.[0];
+                scriptProperties.setProperty('createDate', createDate);
                 return true;
             default:
                 break;

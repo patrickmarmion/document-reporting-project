@@ -46,7 +46,7 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
             //Set script propery createDate
             const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
             const filteredData = column.filter(arr => arr.some(val => val !== ''));
-            const lastCreateDate = filteredData[filteredData.length - 1][0];
+            const lastCreateDate = filteredData.length ? filteredData[filteredData.length - 1][0] : "2021-01-01T01:01:01.000000Z"
             scriptProperties.setProperty('createDate', lastCreateDate);
 
             throw new Error("Script terminated: Maximum number of errors exceeded");
@@ -72,7 +72,6 @@ const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, retri
                 }
             };
         });
-
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
         handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName);
@@ -83,7 +82,7 @@ const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, retri
             //Set script propery createDate
             const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
             const filteredData = column.filter(arr => arr.some(val => val !== ''));
-            const lastCreateDate = filteredData[filteredData.length - 1][0];
+            const lastCreateDate = filteredData.length ? filteredData[filteredData.length - 1][0] : "2021-01-01T01:01:01.000000Z"
             scriptProperties.setProperty('createDate', lastCreateDate);
 
             throw new Error("Script terminated: Maximum number of errors exceeded");

@@ -1,46 +1,64 @@
-//Title
+
 const addNewRow = (data, row) => {
     Logger.log("6. In Doc status");
     try {
-        const dataArray = data.map(obj => [
-            obj.date_sent,
-            "", //Date Viewed
-            "", //Date Sent For Approval
-            "", //Date Approved
-            timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
-            timeTo(obj.date_sent, obj.date_completed), //Time Sent to Completed
-            "", //Time Viewed to Completed
-            timeTo(obj.date_created, obj.date_sent), //Time Created to Sent
-            "", //Total time to approve
-            "", //Time sent to first View
-            obj.renewal ? obj.renewal.renewal_date : "",
-            obj.date_expiration
-        ]);
+        const dataArray = data.map((obj) => {
+            return [
+                obj.date_sent,
+                "", //Date Viewed
+                "", //Date Sent For Approval
+                "", //Date Approved
+                timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
+                timeTo(obj.date_sent, obj.date_completed), //Time Sent to Completed
+                "", //Time Viewed to Completed
+                timeTo(obj.date_created, obj.date_sent), //Time Created to Sent
+                "", //Total time to approve
+                "", //Time sent to first View
+                obj.renewal ? obj.renewal.renewal_date : "",
+                obj.date_expiration
+            ]
+        });
 
         const index = headers[0].indexOf("Date Sent") + 1;
         statusSheet.getRange(row, index, dataArray.length, dataArray[0].length).setValues(dataArray);
     } catch (error) {
         console.log(error);
+        throw new Error("Script terminated: Error Adding New Row");
     }
 };
 
 const updateRowWithPublicAPIResponse = (data, workspaceName) => {
-    const dataArray = data.map(obj => [
-        obj.id,
-        workspaceName,
-        obj.name,
-        obj.date_created,
-        getStatusFormattedText(obj.status),
-        getStatusText(obj.status),
-        obj.template.id ? obj.template.id : "", //Template ID
-        obj.created_by.email ? obj.created_by.email : "", //Owner Email
-        obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
-        obj.grand_total.currency,
-        obj.grand_total.amount,
-        obj.date_completed
-    ]);
-
-    statusSheet.getRange(statusSheet.getLastRow() - dataArray.length, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+    try {
+        const dataArray = data.map((obj) => {
+            return [
+                obj.id,
+                workspaceName ? workspaceName : "",
+                obj.name,
+                obj.date_created,
+                getStatusFormattedText(obj.status),
+                getStatusText(obj.status),
+                obj.template && obj.template.id ? obj.template.id : "", //Template ID
+                obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
+                obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
+                obj.grand_total ? obj.grand_total.currency : "", 
+                obj.grand_total ? obj.grand_total.amount : "", 
+                obj.date_completed ? obj.date_completed : "" 
+            ];
+        });
+        const lastRow = statusSheet.getLastRow();
+        let index;
+        for (let i = lastRow +1; i >= 1; i--) {
+            const value = statusSheet.getRange(`A${i}`).getValue();
+            if (value) {
+                index = i + 1;
+                break
+              }
+        }
+        statusSheet.getRange(index, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+    } catch (error) {
+        console.log(error);
+        throw new Error("Script terminated: Error Adding details from Public API");
+    }
 };
 
 const formatProvider = (provider) => {

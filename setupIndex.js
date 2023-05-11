@@ -49,7 +49,7 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         }
     };
 
-    pauseForTime = triggers.terminateExecution("SetupPrivate");
+    pauseForTime = triggers.terminateExecution("SetupPrivate", docs);
     if (pauseForTime)  {
         return {
             shouldPause: true,
