@@ -1,22 +1,10 @@
 //Title
-const documentStatus = (data, row, workspaceName, event) => {
+const addNewRow = (data, row) => {
     Logger.log("6. In Doc status");
     try {
         const dataArray = data.map(obj => [
-            obj.id,
-            workspaceName,
-            obj.name,
-            obj.date_created,
-            getStatusText(obj.status),
-            getStatusFormattedText(obj.status),
-            obj.created_from_template ? obj.created_from_template.id : "", //Template ID
-            obj.owner ? obj.owner.email : "",
-            "", //Provider
-            "", //Currency
-            "", //Grand Total
             obj.date_sent,
             "", //Date Viewed
-            obj.date_completed,
             "", //Date Sent For Approval
             "", //Date Approved
             timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
@@ -29,13 +17,50 @@ const documentStatus = (data, row, workspaceName, event) => {
             obj.date_expiration
         ]);
 
-        statusSheet.getRange(row, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+        const index = headers[0].indexOf("Date Sent") + 1;
+        statusSheet.getRange(row, index, dataArray.length, dataArray[0].length).setValues(dataArray);
     } catch (error) {
         console.log(error);
     }
 };
 
-const getStatusText = (status) => {
+const updateRowWithPublicAPIResponse = (data, workspaceName) => {
+    const dataArray = data.map(obj => [
+        obj.id,
+        workspaceName,
+        obj.name,
+        obj.date_created,
+        getStatusFormattedText(obj.status),
+        getStatusText(obj.status),
+        obj.template.id ? obj.template.id : "", //Template ID
+        obj.created_by.email ? obj.created_by.email : "", //Owner Email
+        obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
+        obj.grand_total.currency,
+        obj.grand_total.amount,
+        obj.date_completed
+    ]);
+
+    statusSheet.getRange(statusSheet.getLastRow() - dataArray.length, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+};
+
+const formatProvider = (provider) => {
+    switch (provider) {
+        case "salesforce-oauth2":
+            return "Salesforce";
+        case "hubspot":
+            return "HubSpot";
+        case "pandadoc-eform":
+            return "PandaDoc Form";
+        case "pipedrive":
+            return "Pipedrive";
+        case "salesforce-oauth2-sandbox":
+            return "Salesforce Sandbox";
+        default:
+            return provider;
+    }
+}
+
+const getStatusFormattedText = (status) => {
     switch (status) {
         case 0:
             return "Draft";
@@ -64,8 +89,7 @@ const getStatusText = (status) => {
     }
 };
 
-//NEED to complete
-const getStatusFormattedText = (status) => {
+const getStatusText = (status) => {
     switch (status) {
         case 0:
             return "document.draft";
@@ -115,6 +139,7 @@ const timeTo = (timeFirst, timeSecond) => {
     return ""
 }
 
-const handleStatus = {
-    documentStatus: documentStatus
+const handleDocDetailsResponse = {
+    addRowFromPrivAPIResponse: addNewRow,
+    updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse
 };

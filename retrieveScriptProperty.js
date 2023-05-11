@@ -1,15 +1,15 @@
 //Return Value from Script Properties
 
 const getValueFromScriptProperties = (num, prop, property) => {
-    const workspaceName = property.slice(num);
-    const workspaceNameValue = propertiesKeys
-        .filter((key) => key.includes(workspaceName) && key.includes(prop))
+    const strSliced = property.slice(num);
+    const value = propertiesKeys
+        .filter((key) => key.includes(strSliced) && key.includes(prop))
         .reduce((cur, key) => {
             return Object.assign(cur, {
                 [key]: properties[key]
             });
         }, {});
-    const valueArr = Object.values(workspaceNameValue);
+    const valueArr = Object.values(value);
     return valueArr[0];
 };
 

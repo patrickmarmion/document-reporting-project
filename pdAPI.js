@@ -18,14 +18,9 @@ const listDocs = (key, date, page) => {
     }
 };
 
-const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
+const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
     Logger.log("5. Each doc");
     try {
-        if (scriptProperties.getProperty('stopFlag') === 'true') {
-            scriptProperties.setProperty('createDate', docs[0].date_created);
-            Logger.log("Paused for time");
-            return false;
-        };
         const docsFiltered = docs.filter(doc => !doc.name.startsWith("[DEV]") && doc.version === "2")
         const docsMap = docsFiltered.map(doc => `https://api.pandadoc.com/documents/${doc.id}`);
 
@@ -42,11 +37,10 @@ const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
 
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        handleStatus.documentStatus(jsonResponses, statusSheet.getLastRow() + 1, workspaceName, "Setup");
+        handleDocDetailsResponse.addRowFromPrivAPIResponse(jsonResponses, statusSheet.getLastRow() + 1);
         return docsFiltered;
     } catch (error) {
         if (retries > 2) {
-            Logger.log("Maximum number of errors exceeded");
             errorHandler.logAPIError(error);
 
             //Set script propery createDate
@@ -55,16 +49,16 @@ const fetchAllListDocResult = (docs, workspaceName, key, retries = 0) => {
             const lastCreateDate = filteredData[filteredData.length - 1][0];
             scriptProperties.setProperty('createDate', lastCreateDate);
 
-            return false;
+            throw new Error("Script terminated: Maximum number of errors exceeded");
         }
         console.log("Private API " + error);
         console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
         Utilities.sleep(3000);
-        return fetchAllListDocResult(docs, workspaceName, key, retries + 1);
+        return getDocDetailsFromListDocResultPrivateAPI(docs, key, retries + 1);
     }
 };
 
-const fetchAllListDocResultForms = (docs, key, retries = 0) => {
+const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, retries = 0) => {
     Logger.log("7. Form?");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
@@ -81,18 +75,9 @@ const fetchAllListDocResultForms = (docs, key, retries = 0) => {
 
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        form.handleForm(jsonResponses);
-
-        if (scriptProperties.getProperty('stopFlag') === 'true') {
-            const createDate = statusSheet.getRange(statusSheet.getLastRow(), 4).getValues();
-            scriptProperties.setProperty('createDate', createDate[0][0]);
-            Logger.log("Paused for time");
-            return false;
-        };
-        return true;
+        handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName);
     } catch (error) {
         if (retries > 2) {
-            Logger.log("Maximum number of errors exceeded");
             errorHandler.logAPIError(error);
 
             //Set script propery createDate
@@ -101,17 +86,17 @@ const fetchAllListDocResultForms = (docs, key, retries = 0) => {
             const lastCreateDate = filteredData[filteredData.length - 1][0];
             scriptProperties.setProperty('createDate', lastCreateDate);
 
-            return false;
+            throw new Error("Script terminated: Maximum number of errors exceeded");
         }
         console.log("Public API " + error);
         console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
         Utilities.sleep(3000);
-        return fetchAllListDocResultForms(docs, key, retries + 1);
+        return getDocDetailsFromListDocResultPublicAPI(docs, workspaceName, key, retries + 1);
     }
 };
 
 const pdIndex = {
     listDocuments: listDocs,
-    processListDocResult: fetchAllListDocResult,
-    checkIfForm: fetchAllListDocResultForms
+    processListDocResult: getDocDetailsFromListDocResultPrivateAPI,
+    processListDocResultPublicDetails: getDocDetailsFromListDocResultPublicAPI
 };

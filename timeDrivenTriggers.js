@@ -28,7 +28,6 @@ const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'false');
 };
 
-
 const continueFunction = () => {
     Logger.log('1. Continue Function');
     const increment = scriptProperties.getProperty('increment') || 0;
@@ -58,7 +57,30 @@ const deleteSetupTriggers = () => {
     }
 };
 
+const shouldPause = (event) => {
+    const stopFlag = scriptProperties.getProperty('stopFlag');
+    
+    if (stopFlag === 'true') {
+        Logger.log("Paused for time");
+        switch (event) {
+            case "Recovery":
+                return true;
+            case "SetupPrivate":
+                scriptProperties.setProperty('createDate', docs[0].date_created);
+                return true;
+            case "SetupPublic":
+                const createDate = statusSheet.getRange(statusSheet.getLastRow(), 4).getValues();
+                scriptProperties.setProperty('createDate', createDate[0][0]);
+                return true;
+            default:
+                break;
+        }
+    }
+    return false;
+};
+
 const triggers = {
     createTriggers: createTimeTriggers,
-    deleteTriggers: deleteSetupTriggers
+    deleteTriggers: deleteSetupTriggers,
+    terminateExecution: shouldPause
 };

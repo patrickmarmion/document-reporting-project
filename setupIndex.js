@@ -24,13 +24,14 @@ const loopThroughWorkspaces = (date) => {
     if (!pauseForTime) {
         triggers.deleteTriggers();
         deleteDuplicateRowsById();
-        setFinalCreateDate();
+
+        //Items older than 1 year deleted? Once I have back them up to a database...    
     }
 };
 
-
 const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) => {
     Logger.log('3 Fetch and process docs');
+    let pauseForTime = false;
     const {
         length,
         docs
@@ -48,13 +49,15 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         }
     };
 
-    const docsFiltered = pdIndex.processListDocResult(docs, workspaceName, `Bearer ${key}`);
-    if (!docsFiltered) {
+    pauseForTime = triggers.terminateExecution("SetupPrivate");
+    if (pauseForTime)  {
         return {
             shouldPause: true,
             documentsFetched: false
         }
-    }
+    };
+
+    const docsFiltered = pdIndex.processListDocResult(docs, `Bearer ${key}`);
 
     //Insert 100 blank rows
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 100);
@@ -62,13 +65,16 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
     //temporary fix for throttling error
     Utilities.sleep(2000);
 
-    const forms = pdIndex.checkIfForm(docsFiltered, `Bearer ${key}`);
-    if (!forms) {
+    pdIndex.processListDocResultPublicDetails(docsFiltered, workspaceName, `Bearer ${key}`);
+    pauseForTime = triggers.terminateExecution("SetupPublic");
+    if (pauseForTime)  {
         return {
             shouldPause: true,
             documentsFetched: false
         }
-    }
+    };
+
+
     return {
         shouldPause: false,
         documentsFetched: false
@@ -93,14 +99,6 @@ const deleteDuplicateRowsById = () => {
     statusSheet.getDataRange().clearContent();
     statusSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
 };
-
-const setFinalCreateDate = () => {
-    let now = new Date();
-    let oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-    let isoString = oneYearAgo.toISOString();
-    let createDate = isoString.slice(0, 23) + "000Z";
-    scriptProperties.setProperty('createDate', createDate);
-}
 
 const setup = {
     setupIndex: loopThroughWorkspaces

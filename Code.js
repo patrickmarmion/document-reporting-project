@@ -12,6 +12,8 @@ const onOpen = () => {
   let ui = SpreadsheetApp.getUi();
   ui.createMenu('PandaDoc')
     .addItem('Initial Spreadsheet Setup', 'indexSetup')
+    .addSeparator()
+    .addItem('Refresh Documents', 'indexRecovery')
     .addToUi();
 };
 
@@ -36,6 +38,35 @@ const indexSetup = () => {
   triggers.createTriggers();
 };
 
+const indexRecovery = () => {
+  const lastRow = statusSheet.getLastRow();
+  let arr = [];
+
+  if (lastRow < 2) {
+    errorHandler.alert("WARNING: Recovery can only occur with data in the Document_status Sheet.");
+    return;
+  };
+  propertiesKeys.forEach(item => {
+    if (item.startsWith("key")) {
+      arr.push(item);
+    };
+    //Return all hasKeyBeenIterated back to false
+    if (item.startsWith("hasKeyBeenIterated")){
+      scriptProperties.setProperty(item, "false");
+    }
+  });
+  if (!arr.length) {
+    errorHandler.alert("You must have at least one API Key saved as a script property");
+    return;
+  };
+
+  recovery.recoveryIndex();
+}
 
 // ----IDEAS-----
+//Recovery Script: manually triggered. 
+//Will need to create a pauseForTime, which creates another time based trigger.
+//For loop through apiKeys in script properties => match this to an increment (hasKeyBeenIterated), which at the end of the recovery return each back to false
+//Could add here to sort the sheet by CreateDate?
+
 //Sort docs by created date or sort workspaces into their own sheet?
