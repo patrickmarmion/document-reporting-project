@@ -4,7 +4,7 @@ const addNewRow = (data, row) => {
     try {
         const dataArray = data.map((obj) => {
             return [
-                obj.date_sent,
+                obj.date_sent ? obj.date_sent : "",
                 "", //Date Viewed
                 "", //Date Sent For Approval
                 "", //Date Approved
@@ -15,7 +15,7 @@ const addNewRow = (data, row) => {
                 "", //Total time to approve
                 "", //Time sent to first View
                 obj.renewal ? obj.renewal.renewal_date : "",
-                obj.date_expiration
+                obj.date_expiration ? obj.date_expiration : ""
             ]
         });
 
@@ -36,7 +36,7 @@ const updateRowWithPublicAPIResponse = (data, workspaceName) => {
                 obj.name,
                 obj.date_created,
                 getStatusFormattedText(obj.status),
-                getStatusText(obj.status),
+                obj.status,
                 obj.template && obj.template.id ? obj.template.id : "", //Template ID
                 obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
                 obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
@@ -46,19 +46,22 @@ const updateRowWithPublicAPIResponse = (data, workspaceName) => {
             ];
         });
         const lastRow = statusSheet.getLastRow();
-        let index;
-        for (let i = lastRow +1; i >= 1; i--) {
-            const value = statusSheet.getRange(`A${i}`).getValue();
-            if (value) {
-                index = i + 1;
-                break
-              }
-        }
-        statusSheet.getRange(index, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+        const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
+        const rowIndex = values.length < 2 ? 2 : values.findLastIndex(row => row !== "") + 2;
+        statusSheet.getRange(rowIndex, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
     } catch (error) {
         console.log(error);
         throw new Error("Script terminated: Error Adding details from Public API");
     }
+};
+
+Array.prototype.findLastIndex = function (search) {
+    for (let i = this.length - 1; i >= 0; i--) {
+        if (search(this[i][0])) {
+            return i;
+        }
+    }
+    return -1;
 };
 
 const formatProvider = (provider) => {
@@ -80,59 +83,30 @@ const formatProvider = (provider) => {
 
 const getStatusFormattedText = (status) => {
     switch (status) {
-        case 0:
+        case "document.draft":
             return "Draft";
-        case 1:
+        case "document.sent":
             return "Sent";
-        case 2:
+        case "document.completed":
             return "Completed";
-        case 5:
+        case "document.viewed":
             return "Viewed";
-        case 6:
+        case "document.waiting_approval":
             return "Waiting For Approval";
-        case 7:
+        case "document.approved":
             return "Approved";
-        case 8:
+        case "document.rejected":
             return "Rejected";
-        case 9:
+        case "document.waiting_pay":
             return "Waiting For Payment";
-        case 10:
+        case "document.paid":
             return "Paid";
-        case 11:
+        case "document.voided":
             return "Voided";
-        case 12:
+        case "document.declined":
             return "Declined";
-        case 13:
+        case "document.external_review":
             return "External Review";
-    }
-};
-
-const getStatusText = (status) => {
-    switch (status) {
-        case 0:
-            return "document.draft";
-        case 1:
-            return "document.sent";
-        case 2:
-            return "document.completed";
-        case 5:
-            return "document.viewed";
-        case 6:
-            return "document.waiting_approval";
-        case 7:
-            return "document.approved";
-        case 8:
-            return "document.rejected";
-        case 9:
-            return "document.waiting_pay";
-        case 10:
-            return "document.paid";
-        case 11:
-            return "document.voided";
-        case 12:
-            return "document.declined";
-        case 13:
-            return "document.external_review";
     }
 };
 

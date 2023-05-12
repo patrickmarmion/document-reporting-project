@@ -41,7 +41,7 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         //Delete token in script properties.
         scriptProperties.deleteProperty(propertyKey)
 
-        //Return createDate back to 2021.
+        //Return createDate back to 2021. I need this for multiple workspaces
         scriptProperties.setProperty('createDate', "2021-01-01T01:01:01.000000Z");
         return {
             shouldPause: false,

@@ -20,25 +20,18 @@ const createTimeTriggers = () => {
 
 const incrementCreateDate = () => {
     scriptProperties.setProperty('stopFlag', 'true');
-    Utilities.sleep(10000);
-    const increment = Number(scriptProperties.getProperty('increment')) || 1;
-    scriptProperties.setProperty('increment', increment + 1);
+    Utilities.sleep(12000);
 
     scriptProperties.setProperty('stopFlag', 'false');
 };
 
 const continueFunction = () => {
     Logger.log('1. Continue Function');
-    const increment = scriptProperties.getProperty('increment') || 0;
-    if (increment >= 2) {
-        let createDate = scriptProperties.getProperty('createDate') || "2021-01-01T01:01:01.000000Z";
-        setup.setupIndex(createDate);
-    }
+    const createDate = scriptProperties.getProperty('createDate');
+    setup.setupIndex(createDate);
 };
 
 const deleteSetupTriggers = () => {
-    //Frist Delete the increment property, in case you have to run the script again
-    scriptProperties.deleteProperty('increment');
 
     const projectTriggers = ScriptApp.getProjectTriggers();
     const incrementTrigg = scriptProperties.getProperty('incrementTriggerID');
@@ -58,7 +51,7 @@ const deleteSetupTriggers = () => {
 
 const shouldPause = (event, docs) => {
     const stopFlag = scriptProperties.getProperty('stopFlag');
-    
+
     if (stopFlag === 'true') {
         Logger.log("Paused for time");
         switch (event) {

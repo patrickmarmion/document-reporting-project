@@ -33,7 +33,6 @@ const indexSetup = () => {
     errorHandler.alert("You must have at least one Bearer Token saved as a script property");
     return;
   };
-  scriptProperties.setProperty("increment", 1);
   scriptProperties.setProperty("createDate", "2021-01-01T01:01:01.000000Z");
   triggers.createTriggers();
 };
@@ -61,12 +60,13 @@ const indexRecovery = () => {
   };
 
   recovery.recoveryIndex();
-}
+};
 
 // ----IDEAS-----
 //Recovery Script: manually triggered. 
 //Will need to create a pauseForTime, which creates another time based trigger.
 //For loop through apiKeys in script properties => match this to an increment (hasKeyBeenIterated), which at the end of the recovery return each back to false
 //Could add here to sort the sheet by CreateDate?
-
 //Sort docs by created date or sort workspaces into their own sheet?
+
+//----ERRORS----
