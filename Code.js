@@ -46,7 +46,7 @@ const indexRecovery = () => {
     return;
   };
   propertiesKeys.forEach(item => {
-    if (item.startsWith("key")) {
+    if (item.startsWith("apiKey")) {
       arr.push(item);
     };
     //Return all hasKeyBeenIterated back to false
@@ -70,3 +70,4 @@ const indexRecovery = () => {
 //Sort docs by created date or sort workspaces into their own sheet?
 
 //----ERRORS----
+//end of script change of to hasKeyBennIterated rather than apiKey

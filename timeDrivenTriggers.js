@@ -50,26 +50,30 @@ const deleteSetupTriggers = () => {
 };
 
 const shouldPause = (event, docs) => {
-    const stopFlag = scriptProperties.getProperty('stopFlag');
-
-    if (stopFlag === 'true') {
-        Logger.log("Paused for time");
-        switch (event) {
-            case "Recovery":
-                return true;
-            case "SetupPrivate":
-                scriptProperties.setProperty('createDate', docs[0].date_created);
-                return true;
-            case "SetupPublic":
-                const lastRow = statusSheet.getLastRow();
-                const createDate = statusSheet.getRange(`D1:D${lastRow}`).getValues().reverse().find(([value]) => value !== '' && value !== "Date Created")?.[0];
-                scriptProperties.setProperty('createDate', createDate);
-                return true;
-            default:
-                break;
+    try {
+        const stopFlag = scriptProperties.getProperty('stopFlag');
+        if (stopFlag === 'true') {
+            Logger.log("Paused for time");
+            switch (event) {
+                case "Recovery":
+                    return true;
+                case "SetupPrivate":
+                    scriptProperties.setProperty('createDate', docs[0].date_created);
+                    return true;
+                case "SetupPublic":
+                    const lastRow = statusSheet.getLastRow();
+                    const createDate = statusSheet.getRange(`D1:D${lastRow}`).getValues().reverse().find(([value]) => value !== '' && value !== "Date Created")?.[0];
+                    scriptProperties.setProperty('createDate', createDate);
+                    return true;
+                default:
+                    break;
+            }
         }
+        return false;
+    } catch (error) {
+        console.log(error)
     }
-    return false;
+
 };
 
 const triggers = {

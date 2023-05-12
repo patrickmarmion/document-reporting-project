@@ -58,7 +58,7 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
     }
 };
 
-const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, retries = 0) => {
+const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, eventRec, retries = 0) => {
     Logger.log("7. Form?");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
@@ -74,7 +74,11 @@ const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, retri
         });
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName);
+        if(eventRec) {
+            handleDocDetailsResponse.wrongStatus(jsonResponses, workspaceName);
+        } else {
+            handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName);
+        }
     } catch (error) {
         if (retries > 2) {
             errorHandler.logAPIError(error);

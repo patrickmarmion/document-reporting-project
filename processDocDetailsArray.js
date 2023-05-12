@@ -1,4 +1,3 @@
-
 const addNewRow = (data, row) => {
     Logger.log("6. In Doc status");
     try {
@@ -29,31 +28,57 @@ const addNewRow = (data, row) => {
 
 const updateRowWithPublicAPIResponse = (data, workspaceName) => {
     try {
-        const dataArray = data.map((obj) => {
-            return [
-                obj.id,
-                workspaceName ? workspaceName : "",
-                obj.name,
-                obj.date_created,
-                getStatusFormattedText(obj.status),
-                obj.status,
-                obj.template && obj.template.id ? obj.template.id : "", //Template ID
-                obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
-                obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
-                obj.grand_total ? obj.grand_total.currency : "", 
-                obj.grand_total ? obj.grand_total.amount : "", 
-                obj.date_completed ? obj.date_completed : "" 
-            ];
-        });
+        const dataArray = documentMap(data, workspaceName);
+
         const lastRow = statusSheet.getLastRow();
         const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
         const rowIndex = values.length < 2 ? 2 : values.findLastIndex(row => row !== "") + 2;
         statusSheet.getRange(rowIndex, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+
     } catch (error) {
         console.log(error);
         throw new Error("Script terminated: Error Adding details from Public API");
     }
 };
+
+const updateRowWhenStatusIsWrong = (data) => {
+    try {
+        const dataArray = documentMap(data, workspaceName);
+
+        const lastRow = statusSheet.getLastRow();
+        const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
+        console.log(values);
+        dataArray.forEach((item) => {
+            console.log(item.id);
+            let index = values.findIndex((rowItem) => rowItem[0] === item.id) + 2;
+            console.log(index);
+            statusSheet.getRange(index, 1, 1, dataArray[0].length).setValues([item]);
+        });
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+const documentMap = (data, workspaceName) => {
+    const dataArray = data.map((obj) => {
+        return [
+            obj.id,
+            workspaceName ? workspaceName : "",
+            obj.name,
+            obj.date_created,
+            getStatusFormattedText(obj.status),
+            obj.status,
+            obj.template && obj.template.id ? obj.template.id : "", //Template ID
+            obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
+            obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
+            obj.grand_total ? obj.grand_total.currency : "",
+            obj.grand_total ? obj.grand_total.amount : "",
+            obj.date_completed ? obj.date_completed : ""
+        ];
+    });
+    return dataArray
+}
+
 
 Array.prototype.findLastIndex = function (search) {
     for (let i = this.length - 1; i >= 0; i--) {
@@ -61,6 +86,13 @@ Array.prototype.findLastIndex = function (search) {
             return i;
         }
     }
+    return -1;
+};
+
+Array.prototype.findIndex = function (search) {
+    for (let i = 0; i < this.length; i++)
+        if (this[i] == search) return i;
+
     return -1;
 };
 
@@ -133,5 +165,6 @@ const timeTo = (timeFirst, timeSecond) => {
 
 const handleDocDetailsResponse = {
     addRowFromPrivAPIResponse: addNewRow,
-    updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse
+    updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse,
+    wrongStatus: updateRowWhenStatusIsWrong
 };
