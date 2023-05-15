@@ -65,7 +65,7 @@ const doPost = (e) => {
         if (event === "document_deleted") {
             documentDeleted(data.id);
             return
-        }
+        };
 
         //Add a row to the document
         addLastRow();
@@ -73,7 +73,7 @@ const doPost = (e) => {
         // Write to the Log Sheet
         logs(data)
 
-        // Write to Document Status Sheet    
+        // Write to Document Status Sheet
         const rowIndex = searchId(data.id);
         documentStatus(data, rowIndex, workspaceName, event);
 

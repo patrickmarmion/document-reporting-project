@@ -27,9 +27,9 @@ const indexLoopThroughWorkspaces = () => {
                 statusSheet.insertRows(statusSheet.getLastRow() + 1, noIdsInSheet.length);
             };
             const slice = key.slice(6);
-            console.log("hasKeyBeenIterated" + slice);
             scriptProperties.setProperty("hasKeyBeenIterated"+slice, "true");
-        }
+        };
+        formatSheet.sortByCreateDate();
         console.log("finished loop")
     } catch (error) {
         console.log(error)

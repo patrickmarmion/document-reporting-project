@@ -62,10 +62,41 @@ const indexRecovery = () => {
   recovery.recoveryIndex();
 };
 
+//Catch webhook
+const doPost = (e) => {
+  try {
+      const workspaceName = webhookIndex.verifyWebhookSignature(e);
+      if (!workspaceName) {
+          logError("Webhook signature does not match. Key changed or payload has been modified!");
+          throw new Error("Webhook signature does not match. Key changed or payload has been modified!");
+      };
+
+      const postData = JSON.parse(e.postData.contents);
+      const {
+          event,
+          data
+      } = postData[0];
+
+      if (data.name.startsWith("[DEV]")) return;
+      if (event === "document_state_changed" && data.status === "document.completed") return;
+      if (event === "document_deleted") {
+        documentDeleted(data.id);
+        return
+    };
+
+    statusSheet.insertRows(statusSheet.getLastRow() + 1, 1)
+
+    const rowIndex = handleDocDetailsResponse.findRowIndex(data.id) > 1 ? handleDocDetailsResponse.findRowIndex(data.id) +1 : statusSheet.getLastRow() + 1;
+    const updateSheet = rowIndex === statusSheet.getLastRow() + 1 ? handleDocDetailsResponse.webhookAddRow(data, workspaceName, rowIndex) : functionFoundID 
+
+  } catch (error) {
+      logError(error);
+  }
+  return HtmlService.createHtmlOutput("doPost received");
+};
+
 // ----IDEAS-----
-//Will need to create a pauseForTime, which creates another time based trigger.
-//Could add here to sort the sheet by CreateDate?
-//Sort docs by created date or sort workspaces into their own sheet?
+//Webhook workflow
+//Will need to create a pauseForTime, which creates another time based trigger when in reocvery script?
 
 //----ERRORS----
-//Getting an error workspaceName undefined!

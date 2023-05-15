@@ -4,15 +4,12 @@ const addNewRow = (data, row) => {
         const dataArray = data.map((obj) => {
             return [
                 obj.date_sent ? obj.date_sent : "",
-                "", //Date Viewed
-                "", //Date Sent For Approval
-                "", //Date Approved
                 timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
                 timeTo(obj.date_sent, obj.date_completed), //Time Sent to Completed
                 "", //Time Viewed to Completed
                 timeTo(obj.date_created, obj.date_sent), //Time Created to Sent
                 "", //Total time to approve
-                "", //Time sent to first View
+                timeTo(obj.date_sent, obj.status === 5 ? obj.date_status_changed : ""), //Time sent to first View
                 obj.renewal ? obj.renewal.renewal_date : "",
                 obj.date_expiration ? obj.date_expiration : ""
             ]
@@ -69,12 +66,74 @@ const documentMap = (data, workspaceName) => {
             obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
             obj.grand_total ? obj.grand_total.currency : "",
             obj.grand_total ? obj.grand_total.amount : "",
-            obj.date_completed ? obj.date_completed : ""
+            obj.date_completed ? obj.date_completed : "",
+            obj.status === "document.viewed" ? obj.date_modified : "",
+            obj.status === "document.waiting_approval" ? obj.date_modified : "",
+            obj.status === "document.approved" ? obj.date_modified : ""
         ];
     });
     return dataArray
 };
 
+const documentTimeMap = (data) => {
+    const dataArrayTime = data.map((obj) => {
+        return [
+            obj.status === "document.sent" ? obj.date_modified : "",
+            timeTo(obj.date_created, obj.date_completed ? obj.date_completed : ""),
+            timeTo(obj.status === "document.sent" ? obj.date_modified : "", obj.date_completed ? obj.date_completed : ""), //Time Sent to Completed
+            "", //Time viewed to Complete
+            timeTo(obj.date_created, obj.status === "document.sent" ? obj.date_modified : ""), //Time Created to Sent
+        ]
+    });
+    return dataArrayTime
+};
+
+const documentMapUpdate = (data, row) => {
+    const dataArray = data.map((obj) => {
+        const rowValues = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues()[0];
+        return [
+            getStatusFormattedText(obj.status),
+            obj.status,
+            rowValues[6], //Template ID
+            rowValues[7], //Owner Email
+            obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
+            obj.grand_total ? obj.grand_total.currency : "",
+            obj.grand_total ? obj.grand_total.amount : "",
+            obj.date_completed ? obj.date_completed : rowValues[11],
+            obj.status === "document.viewed" ? obj.date_modified : rowValues[12],
+            obj.status === "document.waiting_approval" ? obj.date_modified : rowValues[13],
+            obj.status === "document.approved" ? obj.date_modified : rowValues[14],
+            obj.status === "document.sent" ? obj.date_modified : rowValues[15],
+            timeTo(obj.date_created, obj.date_completed ? obj.date_completed : ""),
+            timeTo(rowValues[15], obj.date_completed ? obj.date_completed : rowValues[11]), //Time Sent to Completed
+            timeTo(rowValues[12], obj.date_completed ? obj.date_completed : rowValues[11]), //Time viewed to Complete
+            timeTo(obj.date_created, obj.status === "document.sent" ? obj.date_modified : rowValues[15]), //Time Created to Sent
+            timeTo(rowValues[13], obj.status === "document.approved" ? obj.date_modified : rowValues[14]), //Total time to approve
+            timeTo(rowValues[15], obj.status === "document.viewed" ? obj.date_modified : rowValues[12]), //Sent to first view
+            rowValues[22], //Renewal Date
+            obj.date_expiration ? obj.date_expiration : rowValues[23]
+        ];
+    });
+    return dataArray
+};
+
+const webhookAddRow = (data, workspaceName, row) => {
+    let dataArr = [];
+    dataArr.push(data[0].data)
+    const docDetailsArray = documentMap(dataArr, workspaceName, row);
+    const docTimings = documentTimeMap(dataArr);
+
+    const values = docDetailsArray[0].concat(docTimings[0]);
+    statusSheet.getRange(row, 1, values.length, values[0].length).setValues([values]);
+};
+
+const webhookUpdateRow = (data, row) => {
+    let dataArr = [];
+    dataArr.push(data[0].data)
+    const docDetailsArray = documentMapUpdate(dataArr, row);
+
+    statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues([docDetailsArray]);
+};
 
 Array.prototype.findLastIndex = function (search) {
     for (let i = this.length - 1; i >= 0; i--) {
@@ -94,8 +153,6 @@ Array.prototype.findIndex = function (search) {
     return -1;
 };
 
-
-
 const formatProvider = (provider) => {
     switch (provider) {
         case "salesforce-oauth2":
@@ -111,7 +168,7 @@ const formatProvider = (provider) => {
         default:
             return provider;
     }
-}
+};
 
 const getStatusFormattedText = (status) => {
     switch (status) {
@@ -161,10 +218,12 @@ const timeTo = (timeFirst, timeSecond) => {
         return duration
     }
     return ""
-}
+};
 
 const handleDocDetailsResponse = {
     addRowFromPrivAPIResponse: addNewRow,
     updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse,
-    wrongStatus: updateRowWhenStatusIsWrong
+    wrongStatus: updateRowWhenStatusIsWrong,
+    findRowIndex: Array.prototype.findIndex,
+    webhookAddRow: webhookAddRow
 };
