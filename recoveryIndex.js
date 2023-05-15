@@ -6,30 +6,29 @@ const indexLoopThroughWorkspaces = () => {
             if (!key.startsWith("apiKey")) continue;
             const hasKeyBeenIterated = property.getValueFromScriptProperties(6, "hasKeyBeenIterated", key);
             if (hasKeyBeenIterated !== "false") continue;
-    
+
             //check if script run time is up
             pauseForTime = triggers.terminateExecution("Recovery", "");
             if (pauseForTime) return;
-    
-            const workspaceName = property.getValueFromScriptProperties(5, "name", key);
-            console.log(workspaceName);
+
+            const workspaceName = property.getValueFromScriptProperties(6, "name", key);
             const modifiedDate = setModifiedDate();
             const filteredDocs = listDocsRecovery(modifiedDate, `API-Key ${properties[key]}`);
             const noIdsInSheet = getColumns(filteredDocs, workspaceName, properties[key]);
             console.log("Number of rows to add: " + noIdsInSheet.length);
-    
+
             //check if script run time is up
             pauseForTime = triggers.terminateExecution("Recovery");
             if (pauseForTime) return;
-    
+
             if (noIdsInSheet.length) {
                 pdIndex.processListDocResultPublicDetails(noIdsInSheet, workspaceName, `API-Key ${properties[key]}`);
                 //Insert corresponding blank rows
                 statusSheet.insertRows(statusSheet.getLastRow() + 1, noIdsInSheet.length);
             };
             const slice = key.slice(6);
-            console.log("hasKeyBeenIterated"+slice);
-            //scriptProperties.setProperty("hasKeyBeenIterated"+slice, "true");
+            console.log("hasKeyBeenIterated" + slice);
+            scriptProperties.setProperty("hasKeyBeenIterated"+slice, "true");
         }
         console.log("finished loop")
     } catch (error) {
@@ -81,34 +80,18 @@ const getColumns = (docs, workspaceName, apiKey) => {
         if (!idExists) {
             noIdInSheet.push(doc);
         } else {
+            if (doc.status === "document.external_review") return;
             let matchStatus = col.find((rowItem) => rowItem[0] === doc.id)[5];
             if (matchStatus !== doc.status) {
+                console.log("Status to be updated!");
                 let docArr = [];
-                //const rowIndex = searchId(doc.id);
                 docArr.push(doc);
                 pdIndex.processListDocResultPublicDetails(docArr, workspaceName, `API-Key ${apiKey}`, "RecoveryUpdateStatus");
             }
         }
     });
-
     return noIdInSheet;
 };
-/*
-//Search first column by document ID
-const searchId = (id) => {
-    const lastRow = statusSheet.getLastRow();
-    const columnValues = statusSheet.getRange(2, 1, lastRow).getValues();
-    const searchResult = columnValues.findIndex(row => row[0] === id);
-    const rowIndex = searchResult !== -1 ? searchResult + 2 : lastRow + 1;
-    return rowIndex
-};
-//Search: return row index if doc ID exists
-Array.prototype.findIndex = function (search) {
-    for (let i = 0; i < this.length; i++)
-        if (this[i] == search) return i;
-
-    return -1;
-};*/
 
 const recovery = {
     recoveryIndex: indexLoopThroughWorkspaces

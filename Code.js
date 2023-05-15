@@ -63,11 +63,9 @@ const indexRecovery = () => {
 };
 
 // ----IDEAS-----
-//Recovery Script: manually triggered. 
 //Will need to create a pauseForTime, which creates another time based trigger.
-//For loop through apiKeys in script properties => match this to an increment (hasKeyBeenIterated), which at the end of the recovery return each back to false
 //Could add here to sort the sheet by CreateDate?
 //Sort docs by created date or sort workspaces into their own sheet?
 
 //----ERRORS----
-//end of script change of to hasKeyBennIterated rather than apiKey
+//Getting an error workspaceName undefined!

@@ -41,19 +41,15 @@ const updateRowWithPublicAPIResponse = (data, workspaceName) => {
     }
 };
 
-const updateRowWhenStatusIsWrong = (data) => {
+const updateRowWhenStatusIsWrong = (data, workspaceName) => {
     try {
         const dataArray = documentMap(data, workspaceName);
 
         const lastRow = statusSheet.getLastRow();
         const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
-        console.log(values);
-        dataArray.forEach((item) => {
-            console.log(item.id);
-            let index = values.findIndex((rowItem) => rowItem[0] === item.id) + 2;
-            console.log(index);
-            statusSheet.getRange(index, 1, 1, dataArray[0].length).setValues([item]);
-        });
+
+        let index = values.findIndex(dataArray[0][0]) + 1;
+        statusSheet.getRange(index, 1, 1, dataArray[0].length).setValues([dataArray[0]]);
     } catch (error) {
         console.log(error);
     }
@@ -77,7 +73,7 @@ const documentMap = (data, workspaceName) => {
         ];
     });
     return dataArray
-}
+};
 
 
 Array.prototype.findLastIndex = function (search) {
@@ -90,11 +86,15 @@ Array.prototype.findLastIndex = function (search) {
 };
 
 Array.prototype.findIndex = function (search) {
-    for (let i = 0; i < this.length; i++)
-        if (this[i] == search) return i;
-
+    for (let i = 0; i < this.length; i++) {
+        if (this[i][0] === search) {
+            return i;
+        }
+    }
     return -1;
 };
+
+
 
 const formatProvider = (provider) => {
     switch (provider) {

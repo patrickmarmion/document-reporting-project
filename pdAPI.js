@@ -59,7 +59,7 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
 };
 
 const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, eventRec, retries = 0) => {
-    Logger.log("7. Form?");
+    Logger.log("Get Doc Details from Public API");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
         const requests = docsMap.map(url => {
