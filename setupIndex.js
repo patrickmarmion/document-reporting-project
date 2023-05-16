@@ -30,7 +30,6 @@ const loopThroughWorkspaces = (date) => {
 };
 
 const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) => {
-    Logger.log('3 Fetch and process docs');
     let pauseForTime = false;
     const {
         length,
@@ -66,6 +65,14 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         docsFiltered,
         privateAPIDetails
     } = pdIndex.processListDocResult(docs, `Bearer ${key}`);
+
+    if (privateAPIDetails.length < 1){
+        console.log("Error with the Private API")
+        return {
+            shouldPause: false,
+            documentsFetched: false
+        }
+    };
 
     pdIndex.processListDocResultPublicDetails(docsFiltered, workspaceName, `Bearer ${key}`, "", privateAPIDetails);
     pauseForTime = triggers.terminateExecution("SetupPublic");
