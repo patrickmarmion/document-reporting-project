@@ -1,5 +1,4 @@
-const addNewRow = (data, row) => {
-    Logger.log("6. In Doc status");
+const privateAPIResponseMap = (data) => {
     try {
         const dataArray = data.map((obj) => {
             return [
@@ -14,23 +13,25 @@ const addNewRow = (data, row) => {
                 obj.date_expiration ? obj.date_expiration : ""
             ]
         });
-
-        const index = headers[0].indexOf("Date Sent") + 1;
-        statusSheet.getRange(row, index, dataArray.length, dataArray[0].length).setValues(dataArray);
+        return dataArray
     } catch (error) {
         console.log(error);
         throw new Error("Script terminated: Error Adding New Row");
     }
 };
 
-const updateRowWithPublicAPIResponse = (data, workspaceName) => {
+const updateRowWithPublicAPIResponse = (data, workspaceName, privateAPIDetails) => {
     try {
         const dataArray = documentMap(data, workspaceName);
+        const rowValues = dataArray.map((innerArr, index) => {
+            return innerArr.concat(privateAPIDetails[index]);
+          });
+
 
         const lastRow = statusSheet.getLastRow();
         const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
         const rowIndex = values.length < 2 ? 2 : values.findLastIndex(row => row !== "") + 2;
-        statusSheet.getRange(rowIndex, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+        statusSheet.getRange(rowIndex, 1, rowValues.length, rowValues[0].length).setValues(rowValues);
 
     } catch (error) {
         console.log(error);
@@ -118,21 +119,32 @@ const documentMapUpdate = (data, row) => {
 };
 
 const webhookAddRow = (data, workspaceName, row) => {
-    let dataArr = [];
-    dataArr.push(data[0].data)
-    const docDetailsArray = documentMap(dataArr, workspaceName, row);
-    const docTimings = documentTimeMap(dataArr);
+    const docDetailsArray = documentMap(data, workspaceName, row);
+    const docTimings = documentTimeMap(data);
 
     const values = docDetailsArray[0].concat(docTimings[0]);
-    statusSheet.getRange(row, 1, values.length, values[0].length).setValues([values]);
+    statusSheet.getRange(row, 1, values.length, values[0].length).setValues(values);
 };
 
 const webhookUpdateRow = (data, row) => {
-    let dataArr = [];
-    dataArr.push(data[0].data)
-    const docDetailsArray = documentMapUpdate(dataArr, row);
+    const docDetailsArray = documentMapUpdate(data, row);
+    statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
+};
 
-    statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues([docDetailsArray]);
+const webhookRecipientCompleted = (data, row) => {
+    if (data.status === "document.completed") {
+        const docDetailsArray = documentMapUpdate(data, row);
+        statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
+    };
+    const rowValues = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues()[0];
+    const recipientDetails = data.map((obj) => {
+        return [
+            obj.action_by.email,
+            obj.action_date
+        ]
+    });
+    const values = rowValues[0].concat(recipientDetails[0]);
+    statusSheet.getRange(row, 1, values.length, values[0].length).setValues(values);
 };
 
 Array.prototype.findLastIndex = function (search) {
@@ -221,9 +233,11 @@ const timeTo = (timeFirst, timeSecond) => {
 };
 
 const handleDocDetailsResponse = {
-    addRowFromPrivAPIResponse: addNewRow,
+    privAPIResponseMap: privateAPIResponseMap,
     updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse,
     wrongStatus: updateRowWhenStatusIsWrong,
     findRowIndex: Array.prototype.findIndex,
-    webhookAddRow: webhookAddRow
+    webhookAddRow: webhookAddRow,
+    webhookUpdateRow: webhookUpdateRow,
+    webhookRecipientCompleted: webhookRecipientCompleted
 };

@@ -19,7 +19,7 @@ const listDocs = (key, date, page) => {
 };
 
 const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
-    Logger.log("5. Each doc");
+    Logger.log("Get Doc Details from Private API");
     try {
         const docsFiltered = docs.filter(doc => !doc.name.startsWith("[DEV]") && doc.version === "2")
         const docsMap = docsFiltered.map(doc => `https://api.pandadoc.com/documents/${doc.id}`);
@@ -37,8 +37,11 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
 
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        handleDocDetailsResponse.addRowFromPrivAPIResponse(jsonResponses, statusSheet.getLastRow() + 1);
-        return docsFiltered;
+        const privateMap = handleDocDetailsResponse.privAPIResponseMap(jsonResponses);
+        return {
+            docsFiltered: docsFiltered,
+            privateAPIDetails: privateMap
+        }
     } catch (error) {
         if (retries > 2) {
             errorHandler.logAPIError(error);
@@ -58,7 +61,7 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
     }
 };
 
-const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, eventRec, retries = 0) => {
+const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, eventRec, privateAPIDetails, retries = 0) => {
     Logger.log("Get Doc Details from Public API");
     try {
         const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
@@ -74,17 +77,17 @@ const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, event
         });
         const responses = UrlFetchApp.fetchAll(requests);
         const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        if(eventRec) {
+        if (eventRec) {
             handleDocDetailsResponse.wrongStatus(jsonResponses, workspaceName);
         } else {
-            handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName);
+            handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName, privateAPIDetails);
         }
     } catch (error) {
         if (retries > 2) {
             errorHandler.logAPIError(error);
 
             //Set script propery createDate
-            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
+            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 101, headers[0].indexOf("Date Created") + 1, 20, 1);
             const filteredData = column.filter(arr => arr.some(val => val !== ''));
             const lastCreateDate = filteredData.length ? filteredData[filteredData.length - 1][0] : "2021-01-01T01:01:01.000000Z"
             scriptProperties.setProperty('createDate', lastCreateDate);
@@ -94,7 +97,7 @@ const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, event
         console.log("Public API " + error);
         console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
         Utilities.sleep(3000);
-        return getDocDetailsFromListDocResultPublicAPI(docs, workspaceName, key, retries + 1);
+        return getDocDetailsFromListDocResultPublicAPI(docs, workspaceName, key, eventRec, retries + 1);
     }
 };
 

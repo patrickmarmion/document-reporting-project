@@ -36,7 +36,6 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
         length,
         docs
     } = pdIndex.listDocuments(`Bearer ${key}`, date, page);
-    console.log(workspaceName + ": " + length);
     if (length === 0) {
         //Delete token in script properties.
         scriptProperties.deleteProperty(propertyKey)
@@ -50,30 +49,32 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
     };
 
     pauseForTime = triggers.terminateExecution("SetupPrivate", docs);
-    if (pauseForTime)  {
+    if (pauseForTime) {
         return {
             shouldPause: true,
             documentsFetched: false
         }
     };
-
-    const docsFiltered = pdIndex.processListDocResult(docs, `Bearer ${key}`);
 
     //Insert 100 blank rows
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 100);
 
     //temporary fix for throttling error
-    Utilities.sleep(2000);
+    Utilities.sleep(6000);
 
-    pdIndex.processListDocResultPublicDetails(docsFiltered, workspaceName, `Bearer ${key}`);
+    const {
+        docsFiltered,
+        privateAPIDetails
+    } = pdIndex.processListDocResult(docs, `Bearer ${key}`);
+
+    pdIndex.processListDocResultPublicDetails(docsFiltered, workspaceName, `Bearer ${key}`, "", privateAPIDetails);
     pauseForTime = triggers.terminateExecution("SetupPublic");
-    if (pauseForTime)  {
+    if (pauseForTime) {
         return {
             shouldPause: true,
             documentsFetched: false
         }
     };
-
 
     return {
         shouldPause: false,

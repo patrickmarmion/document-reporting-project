@@ -50,7 +50,7 @@ const indexRecovery = () => {
       arr.push(item);
     };
     //Return all hasKeyBeenIterated back to false
-    if (item.startsWith("hasKeyBeenIterated")){
+    if (item.startsWith("hasKeyBeenIterated")) {
       scriptProperties.setProperty(item, "false");
     }
   });
@@ -65,38 +65,61 @@ const indexRecovery = () => {
 //Catch webhook
 const doPost = (e) => {
   try {
-      const workspaceName = webhookIndex.verifyWebhookSignature(e);
-      if (!workspaceName) {
-          logError("Webhook signature does not match. Key changed or payload has been modified!");
-          throw new Error("Webhook signature does not match. Key changed or payload has been modified!");
-      };
-
-      const postData = JSON.parse(e.postData.contents);
-      const {
-          event,
-          data
-      } = postData[0];
-
-      if (data.name.startsWith("[DEV]")) return;
-      if (event === "document_state_changed" && data.status === "document.completed") return;
-      if (event === "document_deleted") {
-        documentDeleted(data.id);
-        return
+    const workspaceName = handleWebook.verifyWebhookSignature(e);
+    if (!workspaceName) {
+      errorHandler.logAPIError("Error: No workspace name returned");
+      errorHandler.logAPIError(workspaceName);
+      return;
     };
 
-    statusSheet.insertRows(statusSheet.getLastRow() + 1, 1)
+    const postData = JSON.parse(e.postData.contents);
+    const {
+      event,
+      data
+    } = postData[0];
+    let dataArr = [];
+    dataArr.push(data);
 
-    const rowIndex = handleDocDetailsResponse.findRowIndex(data.id) > 1 ? handleDocDetailsResponse.findRowIndex(data.id) +1 : statusSheet.getLastRow() + 1;
-    const updateSheet = rowIndex === statusSheet.getLastRow() + 1 ? handleDocDetailsResponse.webhookAddRow(data, workspaceName, rowIndex) : functionFoundID 
+    const lastRow = statusSheet.getLastRow();
+    const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
+    const rowIndex = values.findIndex(data.id) > 1 ? values.findIndex(data.id) + 1 : statusSheet.getLastRow() + 1;
+
+    if (data.name.startsWith("[DEV]")) return;
+    if (event === "document_state_changed" && data.status === "document.completed") return;
+
+    if (event === "recipient_completed") {
+      if (rowIndex !== statusSheet.getLastRow() + 1) {
+        handleDocDetailsResponse.webhookRecipientCompleted(dataArr, rowIndex);
+      };
+      return;
+    };
+    if (event === "document_deleted") {
+      handleWebook.documentDeleted(data.id, rowIndex);
+      return;
+    };
+
+    statusSheet.insertRows(statusSheet.getLastRow() + 1, 1);
+    errorHandler.logAPIError("Row Index: " + rowIndex);
+    rowIndex === statusSheet.getLastRow() + 1 ? handleDocDetailsResponse.webhookAddRow(dataArr, workspaceName, rowIndex) : handleDocDetailsResponse.webhookUpdateRow(dataArr, rowIndex);
 
   } catch (error) {
-      logError(error);
+    errorHandler.logAPIError(error);
   }
   return HtmlService.createHtmlOutput("doPost received");
 };
 
+Array.prototype.findIndex = function (search) {
+  for (let i = 0; i < this.length; i++) {
+    if (this[i][0] === search) {
+      return i;
+    }
+  }
+  return -1;
+};
+
 // ----IDEAS-----
-//Webhook workflow
-//Will need to create a pauseForTime, which creates another time based trigger when in reocvery script?
+//Recovery workflow time-based trigger
+//Full testing
+//Better handling of throttling error
 
 //----ERRORS----
