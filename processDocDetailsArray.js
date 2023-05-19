@@ -1,14 +1,14 @@
-const privateAPIResponseMap = (data) => {
+const additionalDocInfoMap = (data) => {
     try {
         const dataArray = data.map((obj) => {
             return [
-                obj.date_sent ? obj.date_sent : "",
-                timeTo(obj.date_created, obj.date_completed), //Time Created to Completed
-                timeTo(obj.date_sent, obj.date_completed), //Time Sent to Completed
+                obj.status === "document.sent" ? obj.date_modified : (obj.date_sent ? obj.date_sent : ""),
+                timeTo(obj.date_created, obj.date_completed ? obj.date_completed : ""), //Time Created to Completed
+                timeTo(obj.status === "document.sent" ? obj.date_modified : (obj.date_sent ? obj.date_sent : ""), obj.date_completed ? obj.date_completed : ""), //Time Sent to Completed
                 "", //Time Viewed to Completed
-                timeTo(obj.date_created, obj.date_sent), //Time Created to Sent
+                timeTo(obj.date_created, obj.status === "document.sent" ? obj.date_modified : (obj.date_sent ? obj.date_sent : "")), //Time Created to Sent
                 "", //Total time to approve
-                timeTo(obj.date_sent, obj.status === 5 ? obj.date_status_changed : ""), //Time sent to first View
+                timeTo(obj.status === "document.sent" ? obj.date_modified : (obj.date_sent ? obj.date_sent : ""), obj.status === 5 ? obj.date_status_changed : ""), //Time sent to first View
                 obj.renewal ? obj.renewal.renewal_date : "",
                 obj.date_expiration ? obj.date_expiration : ""
             ]
@@ -77,19 +77,6 @@ const documentMap = (data, workspaceName) => {
     return dataArray
 };
 
-const documentTimeMap = (data) => {
-    const dataArrayTime = data.map((obj) => {
-        return [
-            obj.status === "document.sent" ? obj.date_modified : "",
-            timeTo(obj.date_created, obj.date_completed ? obj.date_completed : ""),
-            timeTo(obj.status === "document.sent" ? obj.date_modified : "", obj.date_completed ? obj.date_completed : ""), //Time Sent to Completed
-            "", //Time viewed to Complete
-            timeTo(obj.date_created, obj.status === "document.sent" ? obj.date_modified : ""), //Time Created to Sent
-        ]
-    });
-    return dataArrayTime
-};
-
 const documentMapUpdate = (data, row) => {
     const dataArray = data.map((obj) => {
         const rowValues = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues()[0];
@@ -121,7 +108,7 @@ const documentMapUpdate = (data, row) => {
 
 const webhookAddRow = (data, workspaceName, row) => {
     const docDetailsArray = documentMap(data, workspaceName, row);
-    const docTimings = documentTimeMap(data);
+    const docTimings = additionalDocInfoMap(data);
 
     const values = docDetailsArray[0].concat(docTimings[0]);
     statusSheet.getRange(row, 1, values.length, values[0].length).setValues(values);
@@ -234,7 +221,7 @@ const timeTo = (timeFirst, timeSecond) => {
 };
 
 const handleDocDetailsResponse = {
-    privAPIResponseMap: privateAPIResponseMap,
+    privAPIResponseMap: additionalDocInfoMap,
     updateRowFromPubAPIResponse: addDataToSheet,
     wrongStatus: updateRowWhenStatusIsWrong,
     findRowIndex: Array.prototype.findIndex,

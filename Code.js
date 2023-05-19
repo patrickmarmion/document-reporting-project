@@ -123,5 +123,4 @@ Array.prototype.findIndex = function (search) {
 //----Testing----
 
 //----ERRORS----
-//Setup from multiple workspaces the private API endpoint data is not passing through
 //Better handling of throttling error
