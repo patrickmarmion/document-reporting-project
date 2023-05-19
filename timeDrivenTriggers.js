@@ -1,12 +1,12 @@
 const createTimeTriggers = () => {
     let incrementTrigger = ScriptApp.newTrigger('incrementCreateDate')
         .timeBased()
-        .everyMinutes(10)
+        .everyMinutes(5)
         .create();
 
     let continueTrigger = ScriptApp.newTrigger('continueFunction')
         .timeBased()
-        .everyMinutes(15)
+        .everyMinutes(10)
         .create();
 
     const incrementTriggerId = incrementTrigger.getUniqueId();

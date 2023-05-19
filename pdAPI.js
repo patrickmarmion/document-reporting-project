@@ -18,13 +18,13 @@ const listDocs = (key, date, page) => {
     }
 };
 
-const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
-    Logger.log("Get Doc Details from Private API");
+const getDocDetailsFromListDocResult = (docs, key, workspaceName, eventRec, retries = 0) => {
+    Logger.log("Get Doc Details from API");
     try {
-        const docsFiltered = docs.filter(doc => !doc.name.startsWith("[DEV]") && doc.version === "2")
-        const docsMap = docsFiltered.map(doc => `https://api.pandadoc.com/documents/${doc.id}`);
+        const filteredDocs = docs.filter(doc => !doc.name.startsWith("[DEV]") && doc.version === "2");
 
-        const requests = docsMap.map(url => {
+        const publicAPIURLs = filteredDocs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
+        const publicAPIRequests = publicAPIURLs.map(url => {
             return {
                 url: url,
                 method: "GET",
@@ -35,73 +35,52 @@ const getDocDetailsFromListDocResultPrivateAPI = (docs, key, retries = 0) => {
             };
         });
 
-        const responses = UrlFetchApp.fetchAll(requests);
-        const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
-        const privateMap = handleDocDetailsResponse.privAPIResponseMap(jsonResponses);
-        return {
-            docsFiltered: docsFiltered,
-            privateAPIDetails: privateMap
-        }
-    } catch (error) {
-        if (retries > 2) {
-            errorHandler.logAPIError(error);
+        const publicAPIResponses = UrlFetchApp.fetchAll(publicAPIRequests);
+        const publicAPIJsonResponses = publicAPIResponses.map(response => JSON.parse(response.getContentText()));
 
-            //Set script propery createDate
-            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 19, headers[0].indexOf("Date Created") + 1, 20, 1);
-            const filteredData = column.filter(arr => arr.some(val => val !== ''));
-            const lastCreateDate = filteredData.length ? filteredData[filteredData.length - 1][0] : "2021-01-01T01:01:01.000000Z"
-            scriptProperties.setProperty('createDate', lastCreateDate);
-
-            throw new Error("Script terminated: Maximum number of errors exceeded");
-        }
-        console.log("Private API " + error);
-        console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
-        Utilities.sleep(3000);
-        return getDocDetailsFromListDocResultPrivateAPI(docs, key, retries + 1);
-    }
-};
-
-const getDocDetailsFromListDocResultPublicAPI = (docs, workspaceName, key, eventRec, privateAPIDetails, retries = 0) => {
-    try {
-        const docsMap = docs.map(doc => `https://api.pandadoc.com/public/v1/documents/${doc.id}/details`);
-        const requests = docsMap.map(url => {
-            return {
-                url: url,
-                method: "GET",
-                headers: {
-                    'Authorization': key,
-                    'Content-Type': 'application/json;charset=UTF-8'
-                }
-            };
-        });
-        const responses = UrlFetchApp.fetchAll(requests);
-        const jsonResponses = responses.map(response => JSON.parse(response.getContentText()));
         if (eventRec) {
-            handleDocDetailsResponse.wrongStatus(jsonResponses, workspaceName);
-        } else {
-            handleDocDetailsResponse.updateRowFromPubAPIResponse(jsonResponses, workspaceName, privateAPIDetails);
-        }
+            handleDocDetailsResponse.wrongStatus(publicAPIJsonResponses, workspaceName);
+            return;
+        };
+
+        const privateAPIURLs = filteredDocs.map(doc => `https://api.pandadoc.com/documents/${doc.id}`);
+        const privateAPIRequests = privateAPIURLs.map(url => {
+            return {
+                url: url,
+                method: "GET",
+                headers: {
+                    'Authorization': key,
+                    'Content-Type': 'application/json;charset=UTF-8'
+                }
+            };
+        });
+
+        const privateAPIResponses = UrlFetchApp.fetchAll(privateAPIRequests);
+        const privateAPIJsonResponses = privateAPIResponses.map(response => JSON.parse(response.getContentText()));
+        const privateAPIMap = handleDocDetailsResponse.privAPIResponseMap(privateAPIJsonResponses);
+        handleDocDetailsResponse.updateRowFromPubAPIResponse(publicAPIJsonResponses, workspaceName, privateAPIMap);
+
     } catch (error) {
         if (retries > 2) {
             errorHandler.logAPIError(error);
 
-            //Set script propery createDate
-            const column = statusSheet.getSheetValues(statusSheet.getLastRow() - 101, headers[0].indexOf("Date Created") + 1, 20, 1);
-            const filteredData = column.filter(arr => arr.some(val => val !== ''));
-            const lastCreateDate = filteredData.length ? filteredData[filteredData.length - 1][0] : "2021-01-01T01:01:01.000000Z"
+            // Set script property createDate - Think I need to test this properly
+            const lastRow = statusSheet.getLastRow();
+            const values = statusSheet.getRange(`D1:D${lastRow}`).getValues().reverse();
+            const lastCreateDate = values.find(([value]) => value !== '')?.[0] || "2021-01-01T01:01:01.000000Z";
             scriptProperties.setProperty('createDate', lastCreateDate);
 
             throw new Error("Script terminated: Maximum number of errors exceeded");
         }
-        console.log("Public API " + error);
+
+        console.log("API " + error);
         console.log(`Received error, retrying in 3 seconds... (attempt ${retries + 1} of 3)`);
         Utilities.sleep(3000);
-        return getDocDetailsFromListDocResultPublicAPI(docs, workspaceName, key, eventRec, retries + 1);
+        return getDocDetailsFromListDocResult(docs, key, workspaceName, eventRec, retries + 1);
     }
 };
 
 const pdIndex = {
     listDocuments: listDocs,
-    processListDocResult: getDocDetailsFromListDocResultPrivateAPI,
-    processListDocResultPublicDetails: getDocDetailsFromListDocResultPublicAPI
+    processListDocResult: getDocDetailsFromListDocResult
 };

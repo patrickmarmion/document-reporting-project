@@ -119,7 +119,10 @@ Array.prototype.findIndex = function (search) {
 
 // ----IDEAS-----
 //Recovery workflow time-based trigger
-//Full testing
-//Better handling of throttling error
+//After setup script, sort documents by create date
+
+//----Testing----
 
 //----ERRORS----
+//Setup from multiple workspaces the private API endpoint data is not passing through
+//Better handling of throttling error

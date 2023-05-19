@@ -18,6 +18,26 @@ const sortSheetByCreateDate = () => {
     range.setValues(data);
 };
 
+const deleteDuplicateRowsById = () => {
+    let data = statusSheet.getDataRange().getValues();
+    let newData = [];
+    let seen = {};
+
+    for (let i = 0; i < data.length; i++) {
+        let row = data[i];
+        let value = row[0];
+        if (value && !seen[value]) {
+            newData.push(row);
+            seen[value] = true;
+        } else {
+            statusSheet.deleteRow(i + 1);
+        }
+    }
+    statusSheet.getDataRange().clearContent();
+    statusSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
+};
+
 const formatSheet = {
-    sortByCreateDate: sortSheetByCreateDate
+    sortByCreateDate: sortSheetByCreateDate,
+    deleteDuplicateRows: deleteDuplicateRowsById
 }

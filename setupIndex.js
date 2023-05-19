@@ -1,42 +1,34 @@
-const loopThroughWorkspaces = (date) => {
+const processWorkspaces = (date) => {
     Logger.log('2. loop through workspaces');
-    let pauseForTime = false;
-    for (const key of propertiesKeys) {
-        if (!key.startsWith("token")) continue;
-        const workspaceName = property.getValueFromScriptProperties(5, "name", key);
+
+    for (const propertyKey of propertiesKeys) {
+        if (!propertyKey.startsWith("token")) continue;
+
+        const workspaceName = property.getValueFromScriptProperties(5, "name", propertyKey);
         let page = 1;
 
         while (true) {
             const {
                 shouldPause,
                 documentsFetched
-            } = fetchAndProcessDocuments(properties[key], date, page, workspaceName, key);
-            if (shouldPause) {
-                pauseForTime = true;
-                break;
-            }
+            } = fetchAndProcessDocuments(properties[propertyKey], date, page, workspaceName, propertyKey);
+            if (shouldPause) return;
+
             if (documentsFetched) break;
 
             page++;
         }
-        if (pauseForTime) break;
     }
-    if (!pauseForTime) {
-        triggers.deleteTriggers();
-        deleteDuplicateRowsById();
-
-        //Items older than 1 year deleted? Once I have back them up to a database...    
-    }
+    deleteOperations();
 };
 
-const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) => {
+const fetchAndProcessDocuments = (token, date, page, workspaceName, propertyKey) => {
     let pauseForTime = false;
     const {
         length,
         docs
-    } = pdIndex.listDocuments(`Bearer ${key}`, date, page);
+    } = pdIndex.listDocuments(`Bearer ${token}`, date, page);
     if (length === 0) {
-        //Delete token in script properties.
         scriptProperties.deleteProperty(propertyKey)
 
         //Return createDate back to 2021. I need this for multiple workspaces
@@ -59,22 +51,9 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 100);
 
     //temporary fix for throttling error
-    Utilities.sleep(6000);
+    Utilities.sleep(8000);
 
-    const {
-        docsFiltered,
-        privateAPIDetails
-    } = pdIndex.processListDocResult(docs, `Bearer ${key}`);
-
-    if (privateAPIDetails.length < 1){
-        console.log("Error with the Private API")
-        return {
-            shouldPause: false,
-            documentsFetched: false
-        }
-    };
-
-    pdIndex.processListDocResultPublicDetails(docsFiltered, workspaceName, `Bearer ${key}`, "", privateAPIDetails);
+    pdIndex.processListDocResult(docs, `Bearer ${token}`, workspaceName, "");
     pauseForTime = triggers.terminateExecution("SetupPublic");
     if (pauseForTime) {
         return {
@@ -89,25 +68,13 @@ const fetchAndProcessDocuments = (key, date, page, workspaceName, propertyKey) =
     }
 };
 
-const deleteDuplicateRowsById = () => {
-    let data = statusSheet.getDataRange().getValues();
-    let newData = [];
-    let seen = {};
-
-    for (let i = 0; i < data.length; i++) {
-        let row = data[i];
-        let value = row[0];
-        if (value && !seen[value]) {
-            newData.push(row);
-            seen[value] = true;
-        } else {
-            statusSheet.deleteRow(i + 1);
-        }
-    }
-    statusSheet.getDataRange().clearContent();
-    statusSheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
+const deleteOperations = () => {
+    triggers.deleteTriggers();
+    formatSheet.deleteDuplicateRows();
+    formatSheet.sortByCreateDate();
+    //Items older than 1 year deleted? Once I have backed them up to a database...    
 };
 
 const setup = {
-    setupIndex: loopThroughWorkspaces
+    setupIndex: processWorkspaces
 };
