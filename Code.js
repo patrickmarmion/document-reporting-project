@@ -119,7 +119,6 @@ Array.prototype.findIndex = function (search) {
 
 // ----IDEAS-----
 //Recovery workflow time-based trigger
-//After setup script, sort documents by create date
 
 //----Testing----
 

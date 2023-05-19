@@ -20,24 +20,25 @@ const privateAPIResponseMap = (data) => {
     }
 };
 
-const updateRowWithPublicAPIResponse = (data, workspaceName, privateAPIDetails) => {
+const addDataToSheet = (data, workspaceName, privateAPIDetails) => {
     try {
         const dataArray = documentMap(data, workspaceName);
-        const rowValues = dataArray.map((innerArr, index) => {
-            return innerArr.concat(privateAPIDetails[index]);
-          });
+        let rowValues = null;
 
+        if (privateAPIDetails) {
+            rowValues = dataArray.map((innerArr, index) => {
+                return innerArr.concat(privateAPIDetails[index]);
+            });
+        }
 
-        const lastRow = statusSheet.getLastRow();
-        const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
-        const rowIndex = values.length < 2 ? 2 : values.findLastIndex(row => row !== "") + 2;
-        statusSheet.getRange(rowIndex, 1, rowValues.length, rowValues[0].length).setValues(rowValues);
-
+        const values = rowValues ? rowValues : dataArray;
+        statusSheet.getRange(statusSheet.getLastRow() + 1, 1, values.length,values[0].length).setValues(values);
     } catch (error) {
         console.log(error);
         throw new Error("Script terminated: Error Adding details from Public API");
     }
 };
+
 
 const updateRowWhenStatusIsWrong = (data, workspaceName) => {
     try {
@@ -234,7 +235,7 @@ const timeTo = (timeFirst, timeSecond) => {
 
 const handleDocDetailsResponse = {
     privAPIResponseMap: privateAPIResponseMap,
-    updateRowFromPubAPIResponse: updateRowWithPublicAPIResponse,
+    updateRowFromPubAPIResponse: addDataToSheet,
     wrongStatus: updateRowWhenStatusIsWrong,
     findRowIndex: Array.prototype.findIndex,
     webhookAddRow: webhookAddRow,

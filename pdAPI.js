@@ -38,10 +38,14 @@ const getDocDetailsFromListDocResult = (docs, key, workspaceName, eventRec, retr
         const publicAPIResponses = UrlFetchApp.fetchAll(publicAPIRequests);
         const publicAPIJsonResponses = publicAPIResponses.map(response => JSON.parse(response.getContentText()));
 
-        if (eventRec) {
+        if (eventRec === "RecoveryUpdateStatus") {
             handleDocDetailsResponse.wrongStatus(publicAPIJsonResponses, workspaceName);
             return;
         };
+        if (eventRec === "RecoveryAddRow") {
+            handleDocDetailsResponse.updateRowFromPubAPIResponse(publicAPIJsonResponses, workspaceName)
+            return;
+        }
 
         const privateAPIURLs = filteredDocs.map(doc => `https://api.pandadoc.com/documents/${doc.id}`);
         const privateAPIRequests = privateAPIURLs.map(url => {

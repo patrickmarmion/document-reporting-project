@@ -1,14 +1,14 @@
 const indexLoopThroughWorkspaces = () => {
     try {
-        Logger.log("1: loop through workspaces")
-        let pauseForTime = false;
+        Logger.log("1: loop through workspaces");
         for (const key of propertiesKeys) {
             if (!key.startsWith("apiKey")) continue;
+
             const hasKeyBeenIterated = property.getValueFromScriptProperties(6, "hasKeyBeenIterated", key);
             if (hasKeyBeenIterated !== "false") continue;
 
-            //check if script run time is up
-            pauseForTime = triggers.terminateExecution("Recovery", "");
+            // check if script run time is up
+            const pauseForTime = triggers.terminateExecution("Recovery", "");
             if (pauseForTime) return;
 
             const workspaceName = property.getValueFromScriptProperties(6, "name", key);
@@ -17,24 +17,20 @@ const indexLoopThroughWorkspaces = () => {
             const noIdsInSheet = getColumns(filteredDocs, workspaceName, properties[key]);
             console.log("Number of rows to add: " + noIdsInSheet.length);
 
-            //check if script run time is up
-            pauseForTime = triggers.terminateExecution("Recovery");
-            if (pauseForTime) return;
-
             if (noIdsInSheet.length) {
-                pdIndex.processListDocResultPublicDetails(noIdsInSheet, workspaceName, `API-Key ${properties[key]}`);
-                //Insert corresponding blank rows
+                pdIndex.processListDocResult(noIdsInSheet, `API-Key ${properties[key]}`, workspaceName, "RecoveryAddRow");
+                // Insert corresponding blank rows
                 statusSheet.insertRows(statusSheet.getLastRow() + 1, noIdsInSheet.length);
-            };
-            const slice = key.slice(6);
-            scriptProperties.setProperty("hasKeyBeenIterated"+slice, "true");
-        };
-        formatSheet.sortByCreateDate();
-        console.log("finished loop")
-    } catch (error) {
-        console.log(error)
-    }
+            }
 
+            const slice = key.slice(6);
+            scriptProperties.setProperty("hasKeyBeenIterated" + slice, "true");
+        }
+        formatSheet.sortByCreateDate();
+        console.log("Finished loop");
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 const setModifiedDate = () => {
@@ -86,7 +82,7 @@ const getColumns = (docs, workspaceName, apiKey) => {
                 console.log("Status to be updated!");
                 let docArr = [];
                 docArr.push(doc);
-                pdIndex.processListDocResultPublicDetails(docArr, workspaceName, `API-Key ${apiKey}`, "RecoveryUpdateStatus");
+                pdIndex.processListDocResult(docArr, `API-Key ${apiKey}`, workspaceName, "RecoveryUpdateStatus");
             }
         }
     });
