@@ -1,6 +1,6 @@
-const indexLoopThroughWorkspaces = () => {
+const indexLoopThroughWorkspaces = (retries = 0) => {
     try {
-        Logger.log("1: loop through workspaces");
+        Logger.log("Loop through workspaces");
         for (const key of propertiesKeys) {
             if (!key.startsWith("apiKey")) continue;
 
@@ -28,13 +28,13 @@ const indexLoopThroughWorkspaces = () => {
         }
         formatSheet.sortByCreateDate();
         console.log("Finished loop");
+        finalRefresh(retries)
     } catch (error) {
         console.log(error);
     }
 };
 
 const setModifiedDate = () => {
-    Logger.log("2: Set Modified date")
     let now = new Date();
     let threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
     let isoString = threeMonthsAgo.toISOString();
@@ -43,7 +43,6 @@ const setModifiedDate = () => {
 };
 
 const listDocsRecovery = (modifiedDate, apiKey) => {
-    Logger.log("3: list docs");
     const createOptions = {
         'method': 'get',
         'headers': {
@@ -67,7 +66,6 @@ const listDocsRecovery = (modifiedDate, apiKey) => {
 };
 
 const getColumns = (docs, workspaceName, apiKey) => {
-    Logger.log("4: sort columns");
     let noIdInSheet = [];
     const col = statusSheet.getRange(2, 1, statusSheet.getLastRow(), 6).getValues();
 
@@ -88,6 +86,22 @@ const getColumns = (docs, workspaceName, apiKey) => {
     });
     return noIdInSheet;
 };
+
+const finalRefresh = (retries) => {
+    let arr = [];
+
+    propertiesKeys.forEach(item => {
+        if (item.startsWith("hasKeyBeenIterated") && scriptProperties.getProperty(item) === "false") {
+            arr.push(item);
+        }
+    });
+    if (arr.length && retries < 2) {
+        console.log("Refreshing data")
+        Utilities.sleep(3000);
+        indexLoopThroughWorkspaces(retries + 1);
+    }
+};
+
 
 const recovery = {
     recoveryIndex: indexLoopThroughWorkspaces

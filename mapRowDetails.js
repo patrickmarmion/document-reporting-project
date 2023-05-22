@@ -39,7 +39,6 @@ const addDataToSheet = (data, workspaceName, privateAPIDetails) => {
     }
 };
 
-
 const updateRowWhenStatusIsWrong = (data, workspaceName) => {
     try {
         const dataArray = documentMap(data, workspaceName);
@@ -93,9 +92,9 @@ const documentMapUpdate = (data, row) => {
             obj.status === "document.waiting_approval" ? obj.date_modified : rowValues[13],
             obj.status === "document.approved" ? obj.date_modified : rowValues[14],
             obj.status === "document.sent" ? obj.date_modified : rowValues[15],
-            timeTo(obj.date_created, obj.date_completed ? obj.date_completed : ""),
-            timeTo(rowValues[15], obj.date_completed ? obj.date_completed : rowValues[11]), //Time Sent to Completed
-            timeTo(rowValues[12], obj.date_completed ? obj.date_completed : rowValues[11]), //Time viewed to Complete
+            timeTo(obj.date_created, obj.status === "document.completed" ? obj.date_modified : ""), //Time Created to Completed
+            timeTo(rowValues[15], obj.status === "document.completed" ? obj.date_modified : rowValues[11]), //Time Sent to Completed
+            timeTo(rowValues[12], obj.status === "document.completed" ? obj.date_modified : rowValues[11]), //Time viewed to Complete
             timeTo(obj.date_created, obj.status === "document.sent" ? obj.date_modified : rowValues[15]), //Time Created to Sent
             timeTo(rowValues[13], obj.status === "document.approved" ? obj.date_modified : rowValues[14]), //Total time to approve
             timeTo(rowValues[15], obj.status === "document.viewed" ? obj.date_modified : rowValues[12]), //Sent to first view
@@ -104,44 +103,6 @@ const documentMapUpdate = (data, row) => {
         ];
     });
     return dataArray
-};
-
-const webhookAddRow = (data, workspaceName, row) => {
-    const docDetailsArray = documentMap(data, workspaceName, row);
-    const docTimings = additionalDocInfoMap(data);
-
-    const values = docDetailsArray[0].concat(docTimings[0]);
-    statusSheet.getRange(row, 1, values.length, values[0].length).setValues(values);
-};
-
-const webhookUpdateRow = (data, row) => {
-    const docDetailsArray = documentMapUpdate(data, row);
-    statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
-};
-
-const webhookRecipientCompleted = (data, row) => {
-    if (data.status === "document.completed") {
-        const docDetailsArray = documentMapUpdate(data, row);
-        statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
-    };
-    const rowValues = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues()[0];
-    const recipientDetails = data.map((obj) => {
-        return [
-            obj.action_by.email,
-            obj.action_date
-        ]
-    });
-    const values = rowValues[0].concat(recipientDetails[0]);
-    statusSheet.getRange(row, 1, values.length, values[0].length).setValues(values);
-};
-
-Array.prototype.findLastIndex = function (search) {
-    for (let i = this.length - 1; i >= 0; i--) {
-        if (search(this[i][0])) {
-            return i;
-        }
-    }
-    return -1;
 };
 
 Array.prototype.findIndex = function (search) {
@@ -225,7 +186,6 @@ const handleDocDetailsResponse = {
     updateRowFromPubAPIResponse: addDataToSheet,
     wrongStatus: updateRowWhenStatusIsWrong,
     findRowIndex: Array.prototype.findIndex,
-    webhookAddRow: webhookAddRow,
-    webhookUpdateRow: webhookUpdateRow,
-    webhookRecipientCompleted: webhookRecipientCompleted
+    documentMap: documentMap,
+    documentMapUpdate: documentMapUpdate
 };

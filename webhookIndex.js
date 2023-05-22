@@ -12,7 +12,6 @@ const verifyWebhookSignature = (e) => {
 
         if (signature === generatedSignature) {
             const workspaceProperty = property.getValueFromScriptProperties(9, "name", key);
-            errorHandler.logAPIError(workspaceProperty);
             return workspaceProperty;
         }
     }
@@ -41,7 +40,48 @@ const docDeleted = (id, rowIndex) => {
     statusSheet.deleteRow(rowIndex);
 };
 
+const webhookAddRow = (data, workspaceName, row) => {
+    const docDetailsArray = handleDocDetailsResponse.documentMap(data, workspaceName, row);
+    const docTimings = additionalDocInfoMap(data);
+
+    const values = docDetailsArray[0].concat(docTimings[0]);
+    statusSheet.getRange(row, 1, 1, values.length).setValues([values]);
+};
+
+const webhookUpdateRow = (data, row) => {
+    const docDetailsArray = handleDocDetailsResponse.documentMapUpdate(data, row);
+    statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
+};
+
+const webhookRecipientCompleted = (data, row) => {
+    if (data[0].status === "document.completed") {
+        const docDetailsArray = handleDocDetailsResponse.documentMapUpdate(data, row);
+        statusSheet.getRange(row, 5, docDetailsArray.length, docDetailsArray[0].length).setValues(docDetailsArray);
+    };
+
+    const rowValues = statusSheet.getRange(row, 1, 1, statusSheet.getLastColumn()).getValues()[0];
+    for (let i = 24; i < rowValues.length; i++) {
+        if (rowValues[i] === '') {
+            rowValues.splice(i, 1);
+            i--; 
+        }
+    };
+    const recipientDetails = data.map((obj) => {
+        return [
+            obj.action_by.email,
+            obj.action_date
+        ]
+    });
+    
+    
+    const values = rowValues.concat(recipientDetails[0]);
+    statusSheet.getRange(row, 1, 1, values.length).setValues([values]);
+};
+
 const handleWebook = {
     verifyWebhookSignature: verifyWebhookSignature,
-    documentDeleted: docDeleted
+    documentDeleted: docDeleted,
+    webhookAddRow: webhookAddRow,
+    webhookUpdateRow: webhookUpdateRow,
+    webhookRecipientCompleted: webhookRecipientCompleted
 };

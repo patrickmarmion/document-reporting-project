@@ -89,7 +89,7 @@ const doPost = (e) => {
 
     if (event === "recipient_completed") {
       if (rowIndex !== statusSheet.getLastRow() + 1) {
-        handleDocDetailsResponse.webhookRecipientCompleted(dataArr, rowIndex);
+        handleWebook.webhookRecipientCompleted(dataArr, rowIndex);
       };
       return;
     };
@@ -99,8 +99,7 @@ const doPost = (e) => {
     };
 
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 1);
-    errorHandler.logAPIError("Row Index: " + rowIndex);
-    rowIndex === statusSheet.getLastRow() + 1 ? handleDocDetailsResponse.webhookAddRow(dataArr, workspaceName, rowIndex) : handleDocDetailsResponse.webhookUpdateRow(dataArr, rowIndex);
+    rowIndex === statusSheet.getLastRow() + 1 ? handleWebook.webhookAddRow(dataArr, workspaceName, rowIndex) : handleWebook.webhookUpdateRow(dataArr, rowIndex);
 
   } catch (error) {
     errorHandler.logAPIError(error);
@@ -119,8 +118,14 @@ Array.prototype.findIndex = function (search) {
 
 // ----IDEAS-----
 //Recovery workflow time-based trigger
+//Totally Document Code
+//Renaming of each Function to be more descriptive
 
 //----Testing----
+//Completion of doc created to Completed not working
+//Sent to completed
+//Viewed to completed
+//Not adding recipient completed data correctly.
 
 //----ERRORS----
 //Better handling of throttling error
