@@ -1,19 +1,23 @@
-const processWorkspaces = (date) => {
-    Logger.log('2. loop through workspaces');
-
+/**
+ * Based on the Script Properties this function loops through each workspace's Bearer Token.
+ * @param {string} createDate - The document create date parameter, the earliest this can be is 01-01-2021. If the script has partially run but was stopped for time, the createDate will be the last added row.
+ * @returns {void}
+ */
+const processWorkspaces = (createDate) => {
     for (const propertyKey of propertiesKeys) {
         if (!propertyKey.startsWith("token")) continue;
 
         const workspaceName = property.getValueFromScriptProperties(5, "name", propertyKey);
+        Logger.log(`Checking workspace ${workspaceName}`);
+
         let page = 1;
 
         while (true) {
             const {
                 shouldPause,
                 documentsFetched
-            } = fetchAndProcessDocuments(properties[propertyKey], date, page, workspaceName, propertyKey);
+            } = fetchAndProcessDocuments(properties[propertyKey], createDate, page, workspaceName, propertyKey);
             if (shouldPause) return;
-
             if (documentsFetched) break;
 
             page++;
@@ -22,12 +26,24 @@ const processWorkspaces = (date) => {
     deleteOperations();
 };
 
-const fetchAndProcessDocuments = (token, date, page, workspaceName, propertyKey) => {
-    let pauseForTime = false;
+/**
+ * Calls the List Doc endpoint, up to 100 documents returned.
+ * If nothing is returned, loop is finished: deletes the token, returns the createDate to 01-01-2021, ready for the next workspace.
+ * If docs are returned, adds rows to sheet and passes the listed docs array to get their details.
+ * Twice checks if the script is approaching its maximum execution time.
+ * @param {string} token - The Bearer token, with access to the Private API.
+ * @param {string} createDate - The createDate parameter, used in the List Docs endpoint.
+ * @param {number} page - The page parameter, incremented in the processWorkspace function and used in the List Docs endpoint.
+ * @param {string} workspaceName - The workspace name parameter.
+ * @param {string} propertyKey - The property key is from the Script Properties. It is the key corresponding to the token value, I pass this so I can delete the token to prevent looping through it mulitple times. 
+ * @returns {Object} - Return two parameters, shouldPause & documentsFetched. shouldPause kills the script from running, documentsFetched increments the workspace loop.
+ */
+const fetchAndProcessDocuments = (token, createDate, page, workspaceName, propertyKey) => {
+   let pauseForTime = false;
     const {
         length,
         docs
-    } = pdIndex.listDocuments(`Bearer ${token}`, date, page);
+    } = pdIndex.listDocuments(`Bearer ${token}`, createDate, page);
     if (length === 0) {
         scriptProperties.deleteProperty(propertyKey)
 
@@ -47,10 +63,7 @@ const fetchAndProcessDocuments = (token, date, page, workspaceName, propertyKey)
         }
     };
 
-    //Insert 100 blank rows
     statusSheet.insertRows(statusSheet.getLastRow() + 1, 100);
-
-    //temporary fix for throttling error
     Utilities.sleep(8000);
 
     pdIndex.processListDocResult(docs, `Bearer ${token}`, workspaceName, "");
@@ -71,10 +84,10 @@ const fetchAndProcessDocuments = (token, date, page, workspaceName, propertyKey)
 const deleteOperations = () => {
     triggers.deleteTriggers();
     formatSheet.deleteDuplicateRows();
-    formatSheet.sortByCreateDate();
+    formatSheet.sortRowsByCreateDate();
     //Items older than 1 year deleted? Once I have backed them up to a database...    
 };
 
 const setup = {
-    setupIndex: processWorkspaces
+    processWorkspaces: processWorkspaces
 };

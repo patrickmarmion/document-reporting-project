@@ -19,7 +19,6 @@ const indexLoopThroughWorkspaces = (retries = 0) => {
 
             if (noIdsInSheet.length) {
                 pdIndex.processListDocResult(noIdsInSheet, `API-Key ${properties[key]}`, workspaceName, "RecoveryAddRow");
-                // Insert corresponding blank rows
                 statusSheet.insertRows(statusSheet.getLastRow() + 1, noIdsInSheet.length);
             }
 
@@ -36,8 +35,8 @@ const indexLoopThroughWorkspaces = (retries = 0) => {
 
 const setModifiedDate = () => {
     let now = new Date();
-    let threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-    let isoString = threeMonthsAgo.toISOString();
+    let oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    let isoString = oneMonthAgo.toISOString();
     let createDate = isoString.slice(0, 23) + "000Z";
     return createDate;
 };

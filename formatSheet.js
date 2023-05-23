@@ -38,6 +38,6 @@ const deleteDuplicateRowsById = () => {
 };
 
 const formatSheet = {
-    sortByCreateDate: sortSheetByCreateDate,
+    sortRowsByCreateDate: sortSheetByCreateDate,
     deleteDuplicateRows: deleteDuplicateRowsById
 }

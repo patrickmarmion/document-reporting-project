@@ -1,35 +1,55 @@
+/**
+ * Creates time-based triggers. 
+ * The stopExecutionTrigger prevents the script from running too long and receiving a time-out error.
+ * Sets unique trigger IDs as script properties.
+ * @returns {void}
+ */
 const createTimeTriggers = () => {
-    let incrementTrigger = ScriptApp.newTrigger('incrementCreateDate')
+    let stopExecutionTrigger = ScriptApp.newTrigger('stopExecution')
         .timeBased()
         .everyMinutes(5)
         .create();
 
-    let continueTrigger = ScriptApp.newTrigger('continueFunction')
+    let runSetupTrigger = ScriptApp.newTrigger('runSetup')
         .timeBased()
         .everyMinutes(10)
         .create();
 
-    const incrementTriggerId = incrementTrigger.getUniqueId();
-    const continueTriggerId = continueTrigger.getUniqueId();
-    scriptProperties.setProperty("incrementTriggerID", incrementTriggerId);
-    scriptProperties.setProperty("continueTriggerID", continueTriggerId);
-    Logger.log('Triggers created successfully.');
+    let recoveryCheck = ScriptApp.newTrigger('runRecovery')
+        .timeBased()
+        .onWeekDay(ScriptApp.WeekDay.MONDAY)
+        .atHour(6)
+        .create();
 
-    //Below need to create recovery trigger to run weekly.
+    const stopExecutionTriggerId = stopExecutionTrigger.getUniqueId();
+    const runSetupTriggerId = runSetupTrigger.getUniqueId();
+    scriptProperties.setProperty("stopExecutionTriggerID", stopExecutionTriggerId);
+    scriptProperties.setProperty("runSetupTriggerID", runSetupTriggerId);
+    Logger.log('Triggers created successfully.');
 };
 
-const incrementCreateDate = () => {
+/**
+ * Sets the "stopFlag" property before and after sleeping.
+ * @returns {void}
+ */
+const stopExecution = () => {
     scriptProperties.setProperty('stopFlag', 'true');
-    Utilities.sleep(12000);
-
+    Utilities.sleep(14000);
     scriptProperties.setProperty('stopFlag', 'false');
 };
 
-const continueFunction = () => {
-    Logger.log('1. Continue Function');
+/**
+ * Calls the "setupIndex" function from the "setup" module, passing the "createDate" property as an argument.
+ * @returns {void}
+ */
+const runSetup = () => {
     const createDate = scriptProperties.getProperty('createDate');
-    setup.setupIndex(createDate);
+    setup.processWorkspaces(createDate);
 };
+
+const runRecovery = () => {
+    recovery.recoveryIndex();
+}
 
 const deleteSetupTriggers = () => {
 

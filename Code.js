@@ -1,4 +1,3 @@
-const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
 const statusSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Document_status");
 const errorsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Errors");
 const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
@@ -7,7 +6,12 @@ const properties = scriptProperties.getProperties();
 const propertiesKeys = Object.keys(properties);
 scriptProperties.setProperty('stopFlag', 'false');
 
-
+/**
+ * Handles the onOpen event triggered when the spreadsheet is opened.
+ * Creates a custom menu in the UI.
+ *
+ * @returns {void}
+ */
 const onOpen = () => {
   let ui = SpreadsheetApp.getUi();
   ui.createMenu('PandaDoc')
@@ -17,6 +21,12 @@ const onOpen = () => {
     .addToUi();
 };
 
+/**
+ * Performs the initial setup for the spreadsheet.
+ * Checks for existing data and required script properties.
+ *
+ * @returns {void}
+ */
 const indexSetup = () => {
   const lastRow = statusSheet.getLastRow();
   if (lastRow > 1) {
@@ -117,15 +127,10 @@ Array.prototype.findIndex = function (search) {
 };
 
 // ----IDEAS-----
-//Recovery workflow time-based trigger
 //Totally Document Code
 //Renaming of each Function to be more descriptive
 
 //----Testing----
-//Completion of doc created to Completed not working
-//Sent to completed
-//Viewed to completed
-//Not adding recipient completed data correctly.
 
 //----ERRORS----
 //Better handling of throttling error
