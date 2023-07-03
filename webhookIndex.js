@@ -15,7 +15,7 @@ const verifyWebhookSignature = (e) => {
             return workspaceProperty;
         }
     }
-};
+}; 
 
 //Webhook Verification
 const getGeneratedSignature = (input, secret) => {
