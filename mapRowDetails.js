@@ -41,12 +41,36 @@ const addDataToSheet = (data, workspaceName, privateAPIDetails) => {
 
 const updateRowWhenStatusIsWrong = (data, workspaceName) => {
     try {
-        const dataArray = documentMap(data, workspaceName);
-
         const lastRow = statusSheet.getLastRow();
         const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
+        let index = values.findIndex(data[0].id) + 1;
 
-        let index = values.findIndex(dataArray[0][0]) + 1;
+        const rowValues = statusSheet.getRange(`A${index}:X${index}`).getValues();
+        const dataArray = data.map((obj) => {
+            return [
+                obj.id,
+                workspaceName ? workspaceName : "",
+                obj.name,
+                obj.date_created,
+                getStatusFormattedText(obj.status),
+                obj.status,
+                obj.template && obj.template.id ? obj.template.id : "", //Template ID
+                obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
+                obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
+                obj.grand_total ? obj.grand_total.currency : "",
+                obj.grand_total ? obj.grand_total.amount : "",
+                obj.date_completed ? obj.date_completed : "",
+                obj.status === "document.viewed" ? obj.date_modified : "",
+                obj.status === "document.waiting_approval" ? obj.date_modified : "",
+                obj.status === "document.approved" ? obj.date_modified : "",
+                rowValues[15].length > 0 ? rowValues[15] : "", //Date Sent
+                obj.status === "document.completed" ? timeTo(obj.date_created, obj.date_modified) : "", //Time created to completed
+                obj.status === "document.completed" && rowValues[15].length > 0 ? timeTo(rowValues[15], obj.date_modified): "", //Time Sent to completed
+                obj.status === "document.completed" && rowValues[12].length > 0 ? timeTo(rowValues[12], obj.date_modified): "", //Time First View to completed
+                rowValues[19].length > 0 ? rowValues[19] : (obj.status === "document.sent" ? timeTo(obj.date_created, rowValues[15]) : "") //Time Created to Sent
+            ];
+        });
+
         statusSheet.getRange(index, 1, 1, dataArray[0].length).setValues([dataArray[0]]);
     } catch (error) {
         console.log(error);
