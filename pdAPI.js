@@ -1,7 +1,6 @@
 //This file calls various PandaDoc API endpoints 
 
 const listDocs = (key, date, page) => {
-    Logger.log("4. list docs");
     const createOptions = {
         'method': 'get',
         'headers': {
