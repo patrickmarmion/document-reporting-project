@@ -54,15 +54,15 @@ const runRecovery = () => {
 const deleteSetupTriggers = () => {
 
     const projectTriggers = ScriptApp.getProjectTriggers();
-    const incrementTrigg = scriptProperties.getProperty('incrementTriggerID');
-    const continueTrigg = scriptProperties.getProperty('continueTriggerID');
+    const stopExecutionTrig = scriptProperties.getProperty('stopExecutionTriggerID');
+    const runSetupTrig = scriptProperties.getProperty('runSetupTriggerID');
 
     // Iterate over the project triggers
     for (let i = 0; i < projectTriggers.length; i++) {
         const trigger = projectTriggers[i];
         const triggerId = trigger.getUniqueId();
 
-        if (incrementTrigg.includes(triggerId) || continueTrigg.includes(triggerId)) {
+        if (stopExecutionTrig.includes(triggerId) || runSetupTrig.includes(triggerId)) {
             ScriptApp.deleteTrigger(trigger);
             Logger.log('Trigger deleted successfully.');
         }

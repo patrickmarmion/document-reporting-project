@@ -66,8 +66,6 @@ const getDocDetailsFromListDocResult = (docs, key, workspaceName, eventRec, retr
     } catch (error) {
         if (retries > 2) {
             errorHandler.logAPIError(error);
-
-            // Set script property createDate - Think I need to test this properly
             const lastRow = statusSheet.getLastRow();
             const values = statusSheet.getRange(`D1:D${lastRow}`).getValues().reverse();
             const lastCreateDate = values.find(([value]) => value !== '')?.[0] || "2021-01-01T01:01:01.000000Z";
