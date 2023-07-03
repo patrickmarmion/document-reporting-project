@@ -25,7 +25,7 @@ const indexLoopThroughWorkspaces = (retries = 0) => {
             const slice = key.slice(6);
             scriptProperties.setProperty("hasKeyBeenIterated" + slice, "true");
         }
-        formatSheet.sortByCreateDate();
+        formatSheet.sortRowsByCreateDate();
         console.log("Finished loop");
         finalRefresh(retries)
     } catch (error) {
