@@ -94,7 +94,6 @@ const doPost = (e) => {
     const rowIndex = values.findIndex(data.id) > 1 ? values.findIndex(data.id) + 1 : statusSheet.getLastRow() + 1;
 
     if (data.name.startsWith("[DEV]")) return;
-    if (event === "document_state_changed" && data.status === "document.completed") return;
 
     if (event === "recipient_completed") {
       if (rowIndex !== statusSheet.getLastRow() + 1) {
@@ -104,6 +103,11 @@ const doPost = (e) => {
     };
     if (event === "document_deleted") {
       handleWebook.documentDeleted(data.id, rowIndex);
+      return;
+    };
+    if (event === "document_state_changed" && data.status === "document.completed") {
+      Utilities.sleep(3000);
+      recovery.recoveryIndex(); //Handles docs that are manually changed to completed
       return;
     };
 
