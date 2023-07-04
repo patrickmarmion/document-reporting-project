@@ -1,3 +1,16 @@
+/**
+ * Indexes and processes workspaces by performing the following actions:
+ * - Loop through workspaces by API keys stored in script properties & retrieves correspoonding workspace name.
+ * - Check if script has exceeded its maximum execution time.
+ * - Calculates modified date => 1 month before todays date. Filters documents based on modified date.
+ * - Based on filtered docs:
+ * -- Checks if each ID exists in the spreadsheet. If not, process doc ID to add row.
+ * -- Checks if the status on the spreadsheet row is correct. If not, process doc ID and update row.
+ * - Set the "hasKeyBeenIterated" property to true & Format the sheet and sort by create date.
+ *
+ * @param {number} [retries=0] - The number of retries (default: 0).
+ * @returns {void}
+ */
 const indexLoopThroughWorkspaces = (retries = 0) => {
     try {
         Logger.log("Loop through workspaces");
@@ -15,7 +28,7 @@ const indexLoopThroughWorkspaces = (retries = 0) => {
             const workspaceName = property.getValueFromScriptProperties(6, "name", key, properties);
             const modifiedDate = setModifiedDate();
             const filteredDocs = listDocsRecovery(modifiedDate, `API-Key ${properties[key]}`);
-            const noIdsInSheet = getColumns(filteredDocs, workspaceName, properties[key]);
+            const noIdsInSheet = findMissingDocsOrRowsWithWrongStatus(filteredDocs, workspaceName, properties[key]);
             console.log("Number of rows to add: " + noIdsInSheet.length);
 
             if (noIdsInSheet.length) {
@@ -28,7 +41,6 @@ const indexLoopThroughWorkspaces = (retries = 0) => {
         }
         formatSheet.sortRowsByCreateDate();
         console.log("Finished loop");
-        finalRefresh(retries)
     } catch (error) {
         console.log(error);
     }
@@ -65,7 +77,7 @@ const listDocsRecovery = (modifiedDate, apiKey) => {
     return filteredDocsArr;
 };
 
-const getColumns = (docs, workspaceName, apiKey) => {
+const findMissingDocsOrRowsWithWrongStatus = (docs, workspaceName, apiKey) => {
     let noIdInSheet = [];
     const col = statusSheet.getRange(2, 1, statusSheet.getLastRow(), 6).getValues();
 
@@ -86,22 +98,6 @@ const getColumns = (docs, workspaceName, apiKey) => {
     });
     return noIdInSheet;
 };
-
-const finalRefresh = (retries) => {
-    let arr = [];
-
-    propertiesKeys.forEach(item => {
-        if (item.startsWith("hasKeyBeenIterated") && scriptProperties.getProperty(item) === "false") {
-            arr.push(item);
-        }
-    });
-    if (arr.length && retries < 2) {
-        console.log("Refreshing data")
-        Utilities.sleep(3000);
-        indexLoopThroughWorkspaces(retries + 1);
-    }
-};
-
 
 const recovery = {
     recoveryIndex: indexLoopThroughWorkspaces

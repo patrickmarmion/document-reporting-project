@@ -20,7 +20,6 @@ const processWorkspaces = (createDate) => {
             } = fetchAndProcessDocuments(properties[propertyKey], createDate, page, workspaceName, propertyKey);
             if (shouldPause) return;
             if (documentsFetched) break;
-
             page++;
         }
     }
@@ -31,7 +30,7 @@ const processWorkspaces = (createDate) => {
  * Calls the List Doc endpoint, up to 100 documents returned.
  * If nothing is returned, loop is finished: deletes the token, returns the createDate to 01-01-2021, ready for the next workspace.
  * If docs are returned, adds rows to sheet and passes the listed docs array to get their details.
- * Twice checks if the script is approaching its maximum execution time.
+ * Twice checks if script has exceeded its maximum execution time.
  * @param {string} token - The Bearer token, with access to the Private API.
  * @param {string} createDate - The createDate parameter, used in the List Docs endpoint.
  * @param {number} page - The page parameter, incremented in the processWorkspace function and used in the List Docs endpoint.
@@ -82,11 +81,17 @@ const fetchAndProcessDocuments = (token, createDate, page, workspaceName, proper
     }
 };
 
+/**
+ * Deletes operations by performing the following actions:
+ * - Deletes time based triggers.
+ * - Deletes duplicate rows from the formatted sheet.
+ * - Sorts rows in the formatted sheet by doc create date.
+ * @returns {void}
+ */
 const deleteOperations = () => {
     triggers.deleteTriggers();
     formatSheet.deleteDuplicateRows();
-    formatSheet.sortRowsByCreateDate();
-    //Items older than 1 year deleted? Once I have backed them up to a database...    
+    formatSheet.sortRowsByCreateDate();  
 };
 
 const setup = {
