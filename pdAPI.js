@@ -1,5 +1,3 @@
-//This file calls various PandaDoc API endpoints 
-
 const listDocs = (key, date, page) => {
     const createOptions = {
         'method': 'get',
