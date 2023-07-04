@@ -4,10 +4,11 @@
  * @returns {void}
  */
 const processWorkspaces = (createDate) => {
+    const properties = scriptProperties.getProperties();
     for (const propertyKey of propertiesKeys) {
         if (!propertyKey.startsWith("token")) continue;
 
-        const workspaceName = property.getValueFromScriptProperties(5, "name", propertyKey);
+        const workspaceName = property.getValueFromScriptProperties(5, "name", propertyKey, properties);
         Logger.log(`Checking workspace ${workspaceName}`);
 
         let page = 1;

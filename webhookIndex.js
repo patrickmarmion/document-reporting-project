@@ -4,6 +4,7 @@ const verifyWebhookSignature = (e) => {
         signature
     } = e.parameter;
     const input = e.postData.contents;
+    const properties = scriptProperties.getProperties();
 
     for (const key of propertiesKeys) {
         if (!key.startsWith("sharedKey")) continue;
@@ -11,7 +12,7 @@ const verifyWebhookSignature = (e) => {
         const generatedSignature = getGeneratedSignature(input, properties[key]);
 
         if (signature === generatedSignature) {
-            const workspaceProperty = property.getValueFromScriptProperties(9, "name", key);
+            const workspaceProperty = property.getValueFromScriptProperties(9, "name", key, properties);
             return workspaceProperty;
         }
     }

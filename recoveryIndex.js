@@ -1,17 +1,18 @@
 const indexLoopThroughWorkspaces = (retries = 0) => {
     try {
         Logger.log("Loop through workspaces");
+        const properties = scriptProperties.getProperties();
         for (const key of propertiesKeys) {
             if (!key.startsWith("apiKey")) continue;
 
-            const hasKeyBeenIterated = property.getValueFromScriptProperties(6, "hasKeyBeenIterated", key);
+            const hasKeyBeenIterated = property.getValueFromScriptProperties(6, "hasKeyBeenIterated", key, properties);
             if (hasKeyBeenIterated !== "false") continue;
 
             // check if script run time is up
             const pauseForTime = triggers.terminateExecution("Recovery", "");
             if (pauseForTime) return;
 
-            const workspaceName = property.getValueFromScriptProperties(6, "name", key);
+            const workspaceName = property.getValueFromScriptProperties(6, "name", key, properties);
             const modifiedDate = setModifiedDate();
             const filteredDocs = listDocsRecovery(modifiedDate, `API-Key ${properties[key]}`);
             const noIdsInSheet = getColumns(filteredDocs, workspaceName, properties[key]);

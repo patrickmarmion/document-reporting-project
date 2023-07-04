@@ -2,8 +2,8 @@ const statusSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Docume
 const errorsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Errors");
 const headers = statusSheet.getRange(1, 1, 1, statusSheet.getLastColumn()).getValues();
 const scriptProperties = PropertiesService.getScriptProperties();
-const properties = scriptProperties.getProperties();
-const propertiesKeys = Object.keys(properties);
+let initialProperties = scriptProperties.getProperties();
+const propertiesKeys = Object.keys(initialProperties);
 scriptProperties.setProperty('stopFlag', 'false');
 
 /**
@@ -49,22 +49,21 @@ const indexSetup = () => {
 
 const indexRecovery = () => {
   const lastRow = statusSheet.getLastRow();
-  let arr = [];
-
   if (lastRow < 2) {
     errorHandler.alert("WARNING: Recovery can only occur with data in the Document_status Sheet.");
     return;
   };
+
+  let apiKeyFound = false;
   propertiesKeys.forEach(item => {
     if (item.startsWith("apiKey")) {
-      arr.push(item);
-    };
-    //Return all hasKeyBeenIterated back to false
+      apiKeyFound = true;
+    }
     if (item.startsWith("hasKeyBeenIterated")) {
       scriptProperties.setProperty(item, "false");
     }
   });
-  if (!arr.length) {
+  if (!apiKeyFound) {
     errorHandler.alert("You must have at least one API Key saved as a script property");
     return;
   };
@@ -125,12 +124,3 @@ Array.prototype.findIndex = function (search) {
   }
   return -1;
 };
-
-// ----IDEAS-----
-//Totally Document Code
-//Renaming of each Function to be more descriptive
-
-//----Testing----
-
-//----ERRORS----
-//Better handling of throttling error

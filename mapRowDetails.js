@@ -44,8 +44,10 @@ const updateRowWhenStatusIsWrong = (data, workspaceName) => {
         const lastRow = statusSheet.getLastRow();
         const values = statusSheet.getRange(`A1:A${lastRow}`).getValues();
         let index = values.findIndex(data[0].id) + 1;
+        console.log("Row Index: " + index);
 
-        const rowValues = statusSheet.getRange(`A${index}:X${index}`).getValues();
+        const rowValues = statusSheet.getRange(`A${index}:X${index}`).getValues()[0];
+        console.log(rowValues);
         const dataArray = data.map((obj) => {
             return [
                 obj.id,
@@ -54,7 +56,7 @@ const updateRowWhenStatusIsWrong = (data, workspaceName) => {
                 obj.date_created,
                 getStatusFormattedText(obj.status),
                 obj.status,
-                obj.template && obj.template.id ? obj.template.id : "", //Template ID
+                obj.template && obj.template.id ? obj.template.id : "", 
                 obj.created_by && obj.created_by.email ? obj.created_by.email : "", //Owner Email
                 obj.linked_objects && obj.linked_objects.length > 0 ? formatProvider(obj.linked_objects[0].provider) : "",
                 obj.grand_total ? obj.grand_total.currency : "",

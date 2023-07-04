@@ -1,6 +1,6 @@
 //Return Value from Script Properties
 
-const getValueFromScriptProperties = (num, prop, property) => {
+const getValueFromScriptProperties = (num, prop, property, properties) => {
     const strSliced = property.slice(num);
     const value = propertiesKeys
         .filter((key) => key.includes(strSliced) && key.includes(prop))
